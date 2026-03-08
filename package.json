@@ -1,0 +1,16 @@
+{
+  "name": "ts-compiler-lexer",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Lexer for a TypeScript-like language compiler",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "ts-node src/cli.ts",
+    "check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.0"
+  }
+}
