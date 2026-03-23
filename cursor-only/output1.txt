@@ -1,0 +1,5 @@
+INFO  Lexer - Lexing program 1...
+DEBUG Lexer - OPEN_BLOCK '{' found at (1:1)
+DEBUG Lexer - CLOSE_BLOCK '}' found at (1:2)
+DEBUG Lexer - EOP '$' found at (1:3)
+INFO  Lexer - Lex completed with 0 errors

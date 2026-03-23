@@ -5,6 +5,101 @@ interface LexerOptions {
   debug?: boolean;
 }
 
+// High-level token scan states used by the primary DFA.
+enum StartState {
+  START = "START",
+  ACCEPT_OPEN_BLOCK = "ACCEPT_OPEN_BLOCK",
+  ACCEPT_CLOSE_BLOCK = "ACCEPT_CLOSE_BLOCK",
+  ACCEPT_EOP = "ACCEPT_EOP",
+  POSSIBLE_COMMENT = "POSSIBLE_COMMENT",
+  SKIP = "SKIP"
+}
+
+// Dedicated DFA states for scanning block comments.
+enum CommentState {
+  EXPECT_STAR = "EXPECT_STAR",
+  IN_COMMENT = "IN_COMMENT",
+  POSSIBLE_END = "POSSIBLE_END",
+  TERMINATED = "TERMINATED",
+  UNTERMINATED = "UNTERMINATED",
+  NOT_A_COMMENT = "NOT_A_COMMENT"
+}
+
+// Input alphabet classes consumed by DFA tables.
+enum CharClass {
+  OPEN_BLOCK = "OPEN_BLOCK",
+  CLOSE_BLOCK = "CLOSE_BLOCK",
+  EOP = "EOP",
+  SLASH = "SLASH",
+  STAR = "STAR",
+  WHITESPACE = "WHITESPACE",
+  OTHER = "OTHER",
+  EOF = "EOF"
+}
+
+// Main token-dispatch DFA: classifies one char and routes to an accept/skip/comment state.
+const START_TRANSITION_TABLE: Record<StartState, Partial<Record<CharClass, StartState>>> = {
+  [StartState.START]: {
+    [CharClass.OPEN_BLOCK]: StartState.ACCEPT_OPEN_BLOCK,
+    [CharClass.CLOSE_BLOCK]: StartState.ACCEPT_CLOSE_BLOCK,
+    [CharClass.EOP]: StartState.ACCEPT_EOP,
+    [CharClass.SLASH]: StartState.POSSIBLE_COMMENT,
+    [CharClass.WHITESPACE]: StartState.SKIP,
+    [CharClass.OTHER]: StartState.SKIP,
+    [CharClass.STAR]: StartState.SKIP,
+    [CharClass.EOF]: StartState.SKIP
+  },
+  [StartState.ACCEPT_OPEN_BLOCK]: {},
+  [StartState.ACCEPT_CLOSE_BLOCK]: {},
+  [StartState.ACCEPT_EOP]: {},
+  [StartState.POSSIBLE_COMMENT]: {},
+  [StartState.SKIP]: {}
+};
+
+// Comment DFA: validates and consumes /* ... */ including multi-line comments.
+const COMMENT_TRANSITION_TABLE: Record<CommentState, Partial<Record<CharClass, CommentState>>> = {
+  [CommentState.EXPECT_STAR]: {
+    [CharClass.STAR]: CommentState.IN_COMMENT,
+    [CharClass.EOF]: CommentState.UNTERMINATED,
+    [CharClass.OPEN_BLOCK]: CommentState.NOT_A_COMMENT,
+    [CharClass.CLOSE_BLOCK]: CommentState.NOT_A_COMMENT,
+    [CharClass.EOP]: CommentState.NOT_A_COMMENT,
+    [CharClass.SLASH]: CommentState.NOT_A_COMMENT,
+    [CharClass.WHITESPACE]: CommentState.NOT_A_COMMENT,
+    [CharClass.OTHER]: CommentState.NOT_A_COMMENT
+  },
+  [CommentState.IN_COMMENT]: {
+    [CharClass.EOF]: CommentState.UNTERMINATED,
+    [CharClass.STAR]: CommentState.POSSIBLE_END,
+    [CharClass.OPEN_BLOCK]: CommentState.IN_COMMENT,
+    [CharClass.CLOSE_BLOCK]: CommentState.IN_COMMENT,
+    [CharClass.EOP]: CommentState.IN_COMMENT,
+    [CharClass.SLASH]: CommentState.IN_COMMENT,
+    [CharClass.WHITESPACE]: CommentState.IN_COMMENT,
+    [CharClass.OTHER]: CommentState.IN_COMMENT
+  },
+  [CommentState.POSSIBLE_END]: {
+    [CharClass.EOF]: CommentState.UNTERMINATED,
+    [CharClass.SLASH]: CommentState.TERMINATED,
+    [CharClass.STAR]: CommentState.POSSIBLE_END,
+    [CharClass.OPEN_BLOCK]: CommentState.IN_COMMENT,
+    [CharClass.CLOSE_BLOCK]: CommentState.IN_COMMENT,
+    [CharClass.EOP]: CommentState.IN_COMMENT,
+    [CharClass.WHITESPACE]: CommentState.IN_COMMENT,
+    [CharClass.OTHER]: CommentState.IN_COMMENT
+  },
+  [CommentState.TERMINATED]: {},
+  [CommentState.UNTERMINATED]: {},
+  [CommentState.NOT_A_COMMENT]: {}
+};
+
+// Accepting start states that produce concrete tokens.
+const ACCEPTING_TOKENS: Partial<Record<StartState, TokenType>> = {
+  [StartState.ACCEPT_OPEN_BLOCK]: TokenType.OPEN_BLOCK,
+  [StartState.ACCEPT_CLOSE_BLOCK]: TokenType.CLOSE_BLOCK,
+  [StartState.ACCEPT_EOP]: TokenType.EOP
+};
+
 export class Lexer {
   private readonly source: string;
   private readonly debug: boolean;
@@ -23,50 +118,39 @@ export class Lexer {
     let currentProgram = 0;
     let inProgram = false;
 
-    // The if statements correspond to the grammar rules
     while (!this.isAtEnd()) {
-      const current = this.peek();
-      const position = this.currentPosition();
-
-      if (this.isWhitespace(current)) {
-        this.consumeWhitespace();
-        continue;
-      }
-
-      if (!inProgram) {
+      // A non-whitespace char starts a new program segment until we hit EOP.
+      if (!inProgram && this.classify(this.peek()) !== CharClass.WHITESPACE) {
         currentProgram += 1;
         inProgram = true;
         console.log(`INFO  Lexer - Lexing program ${currentProgram}...`);
       }
 
-      if (current === "{") {
-        tokens.push(this.createToken(TokenType.OPEN_BLOCK, this.advance(), position));
-        this.column += 1;
-        this.debugToken(TokenType.OPEN_BLOCK, "{", position.line, position.column);
+      const state = this.nextStartState();
+      const position = this.currentPosition();
+      const acceptingToken = ACCEPTING_TOKENS[state];
+
+      // Accepting states emit a token from the current character.
+      if (acceptingToken !== undefined) {
+        const lexeme = this.consumeChar();
+        tokens.push(this.createToken(acceptingToken, lexeme, position));
+        this.debugToken(acceptingToken, lexeme, position.line, position.column);
+
+        // EOP marks the end of one program in a multi-program input stream.
+        if (acceptingToken === TokenType.EOP) {
+          console.log("INFO  Lexer - Lex completed with 0 errors");
+          inProgram = false;
+        }
+
         continue;
       }
 
-      if (current === "}") {
-        tokens.push(this.createToken(TokenType.CLOSE_BLOCK, this.advance(), position));
-        this.column += 1;
-        this.debugToken(TokenType.CLOSE_BLOCK, "}", position.line, position.column);
-        continue;
-      }
-
-      if (current === "$") {
-        tokens.push(this.createToken(TokenType.EOP, this.advance(), position));
-        this.column += 1;
-        this.debugToken(TokenType.EOP, "$", position.line, position.column);
-        console.log("INFO  Lexer - Lex completed with 0 errors");
-        inProgram = false;
-        continue;
-      }
-
-      if (current === "/" && this.peekNext() === "*") {
+      // Slash can start a block comment; comment DFA handles the rest.
+      if (state === StartState.POSSIBLE_COMMENT) {
         const commentStart = this.currentPosition();
-        const terminated = this.consumeCommentBlock();
+        const commentTerminated = this.consumeCommentByDfa();
 
-        if (!terminated) {
+        if (commentTerminated === false) {
           this.warn(
             commentStart.line,
             commentStart.column,
@@ -77,52 +161,68 @@ export class Lexer {
         continue;
       }
 
-      this.advance();
-      this.column += 1;
+      // Unknown or currently unsupported chars are consumed and ignored for now.
+      this.consumeChar();
     }
 
     return tokens;
   }
 
-  // Checks if the lexer is at the end, helps lexing function loop
   private isAtEnd(): boolean {
     return this.index >= this.source.length;
   }
 
-  // Looks at the current character without increasing the index
   private peek(): string {
-    return this.source[this.index] ?? "\0";// Prevents index out of bounds error
+    return this.source[this.index] ?? "\0";
   }
 
-  // Looks at the next character without increasing the index
-  private peekNext(): string {
-    return this.source[this.index + 1] ?? "\0";
-  }
-
-  // Consumes the current character and increases the index
   private advance(): string {
-    const char = this.source[this.index] ?? "\0";// Same as peek when it did \0
+    const char = this.source[this.index] ?? "\0";
     this.index += 1;
     return char;
   }
 
-  // Checks if the character is whitespace
-  private isWhitespace(char: string): boolean {
-    return char === " " || char === "\t" || char === "\r" || char === "\n";
+  private classify(char: string): CharClass {
+    if (char === "\0") {
+      return CharClass.EOF;
+    }
+    if (char === "{") {
+      return CharClass.OPEN_BLOCK;
+    }
+    if (char === "}") {
+      return CharClass.CLOSE_BLOCK;
+    }
+    if (char === "$") {
+      return CharClass.EOP;
+    }
+    if (char === "/") {
+      return CharClass.SLASH;
+    }
+    if (char === "*") {
+      return CharClass.STAR;
+    }
+    if (char === " " || char === "\t" || char === "\r" || char === "\n") {
+      return CharClass.WHITESPACE;
+    }
+    return CharClass.OTHER;
   }
 
-  // Uses advance function to consume whitespace
-  private consumeWhitespace(): void {
+  // One table lookup from START determines what to do with the next character.
+  private nextStartState(): StartState {
+    const charClass = this.classify(this.peek());
+    return START_TRANSITION_TABLE[StartState.START][charClass] ?? StartState.SKIP;
+  }
+
+  private consumeChar(): string {
     const char = this.advance();
     this.updatePositionAfterConsume(char);
+    return char;
   }
 
-  // Returns the current position of the lexer
   private currentPosition(): { line: number; column: number; index: number } {
     return { line: this.line, column: this.column, index: this.index };
   }
 
-  // Creates a token
   private createToken(
     type: TokenType,
     lexeme: string,
@@ -135,7 +235,6 @@ export class Lexer {
     };
   }
 
-  // Debugs a token if debug mode is enabled
   private debugToken(type: TokenType, lexeme: string, line: number, column: number): void {
     if (!this.debug) {
       return;
@@ -144,25 +243,40 @@ export class Lexer {
     console.log(`DEBUG Lexer - ${type} '${lexeme}' found at (${line}:${column})`);
   }
 
-  // Consumes a comment block
-  private consumeCommentBlock(): boolean {
-    this.updatePositionAfterConsume(this.advance()); // /
-    this.updatePositionAfterConsume(this.advance()); // *
+  private consumeCommentByDfa(): boolean {
+    let state = CommentState.EXPECT_STAR;
 
-    while (!this.isAtEnd()) {
-      const char = this.advance();
-      this.updatePositionAfterConsume(char);
+    // We enter here after seeing '/', so consume it before checking for '*'.
+    this.consumeChar(); // initial '/'
 
-      if (char === "*" && this.peek() === "/") {
-        this.updatePositionAfterConsume(this.advance()); // /
+    while (true) {
+      const currentChar = this.peek();
+      const currentClass = this.classify(currentChar);
+      state = this.nextCommentStateByTable(state, currentClass);
+
+      // '/x' where x != '*' is not a block comment in this grammar stage.
+      if (state === CommentState.NOT_A_COMMENT) {
         return true;
       }
-    }
+      // EOF reached before comment terminator.
+      if (state === CommentState.UNTERMINATED) {
+        return false;
+      }
+      // We are on the trailing '/' in '*/', consume it and finish.
+      if (state === CommentState.TERMINATED) {
+        this.consumeChar(); // consume '/'
+        return true;
+      }
 
-    return false;
+      this.consumeChar();
+    }
   }
 
-  // Updates the line and column after consuming a character
+  private nextCommentStateByTable(state: CommentState, charClass: CharClass): CommentState {
+    return COMMENT_TRANSITION_TABLE[state][charClass] ?? CommentState.UNTERMINATED;
+  }
+
+  // Keeps line/column tracking accurate for token and warning locations.
   private updatePositionAfterConsume(char: string): void {
     if (char === "\n") {
       this.line += 1;
@@ -173,7 +287,7 @@ export class Lexer {
     this.column += 1;
   }
 
-  // Sends warnings to the console
+  // Warning doesn't terminate the program, it just warns the user.
   private warn(line: number, column: number, message: string): void {
     console.log(`WARN  Lexer - Warning:${line}:${column} ${message}`);
   }

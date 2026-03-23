@@ -1,0 +1,17 @@
+INFO  Lexer - Lexing program 3...
+DEBUG Lexer - OPEN_BLOCK '{' found at (3:1)
+DEBUG Lexer - OPEN_BLOCK '{' found at (3:2)
+DEBUG Lexer - OPEN_BLOCK '{' found at (3:3)
+DEBUG Lexer - OPEN_BLOCK '{' found at (3:4)
+DEBUG Lexer - OPEN_BLOCK '{' found at (3:5)
+DEBUG Lexer - OPEN_BLOCK '{' found at (3:6)
+DEBUG Lexer - OPEN_BLOCK '{' found at (3:7)
+DEBUG Lexer - CLOSE_BLOCK '}' found at (3:8)
+DEBUG Lexer - CLOSE_BLOCK '}' found at (3:9)
+DEBUG Lexer - CLOSE_BLOCK '}' found at (3:38)
+DEBUG Lexer - CLOSE_BLOCK '}' found at (3:39)
+DEBUG Lexer - CLOSE_BLOCK '}' found at (3:40)
+DEBUG Lexer - CLOSE_BLOCK '}' found at (3:41)
+DEBUG Lexer - CLOSE_BLOCK '}' found at (3:42)
+DEBUG Lexer - EOP '$' found at (3:43)
+INFO  Lexer - Lex completed with 0 errors

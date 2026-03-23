@@ -1,0 +1,7 @@
+INFO  Lexer - Lexing program 4...
+DEBUG Lexer - OPEN_BLOCK [ { ] found at (4:1)
+DEBUG Lexer - I_TYPE [ int ] found at (4:36)
+ERROR Lexer - Error:4:40 Unrecognized Token: θ
+DEBUG Lexer - CLOSE_BLOCK [ } ] found at (4:41)
+DEBUG Lexer - EOP [ $ ] found at (4:42)
+ERROR Lexer - Lex failed with 1 error(s)

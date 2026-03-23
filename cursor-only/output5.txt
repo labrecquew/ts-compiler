@@ -1,0 +1,25 @@
+Input:
+{
+    int a
+    a = a
+    string b 
+    a = b
+}
+
+
+Output:
+INFO  Lexer - Lexing program 5...
+DEBUG Lexer - OPEN_BLOCK [ { ] found at (5:1)
+DEBUG Lexer - I_TYPE [ int ] found at (6:3)
+DEBUG Lexer - ID [ a ] found at (6:7)
+DEBUG Lexer - ID [ a ] found at (7:3)
+DEBUG Lexer - ASSIGN_OP [ = ] found at (7:5)
+DEBUG Lexer - ID [ a ] found at (7:7)
+DEBUG Lexer - I_TYPE [ string ] found at (8:3)
+DEBUG Lexer - ID [ b ] found at (8:10)
+DEBUG Lexer - ID [ a ] found at (9:3)
+DEBUG Lexer - ASSIGN_OP [ = ] found at (9:5)
+DEBUG Lexer - ID [ b ] found at (9:7)
+DEBUG Lexer - CLOSE_BLOCK [ } ] found at (10:1)
+DEBUG Lexer - EOP [ $ ] found at (10:2)
+INFO  Lexer - Lex completed with 0 errors
