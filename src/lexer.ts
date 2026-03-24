@@ -12,6 +12,7 @@ enum StartState {
   ACCEPT_CLOSE_BLOCK = "ACCEPT_CLOSE_BLOCK",
   ACCEPT_EOP = "ACCEPT_EOP",
   POSSIBLE_COMMENT = "POSSIBLE_COMMENT",
+  POSSIBLE_WORD = "POSSIBLE_WORD",
   SKIP = "SKIP"
 }
 
@@ -25,6 +26,13 @@ enum CommentState {
   NOT_A_COMMENT = "NOT_A_COMMENT"
 }
 
+// Dedicated DFA states for scanning contiguous lowercase words.
+enum WordState {
+  START = "START",
+  IN_WORD = "IN_WORD",
+  ACCEPT = "ACCEPT"
+}
+
 // Input alphabet classes consumed by DFA tables.
 enum CharClass {
   OPEN_BLOCK = "OPEN_BLOCK",
@@ -32,6 +40,7 @@ enum CharClass {
   EOP = "EOP",
   SLASH = "SLASH",
   STAR = "STAR",
+  LETTER = "LETTER",
   WHITESPACE = "WHITESPACE",
   OTHER = "OTHER",
   EOF = "EOF"
@@ -44,6 +53,7 @@ const START_TRANSITION_TABLE: Record<StartState, Partial<Record<CharClass, Start
     [CharClass.CLOSE_BLOCK]: StartState.ACCEPT_CLOSE_BLOCK,
     [CharClass.EOP]: StartState.ACCEPT_EOP,
     [CharClass.SLASH]: StartState.POSSIBLE_COMMENT,
+    [CharClass.LETTER]: StartState.POSSIBLE_WORD,
     [CharClass.WHITESPACE]: StartState.SKIP,
     [CharClass.OTHER]: StartState.SKIP,
     [CharClass.STAR]: StartState.SKIP,
@@ -53,6 +63,7 @@ const START_TRANSITION_TABLE: Record<StartState, Partial<Record<CharClass, Start
   [StartState.ACCEPT_CLOSE_BLOCK]: {},
   [StartState.ACCEPT_EOP]: {},
   [StartState.POSSIBLE_COMMENT]: {},
+  [StartState.POSSIBLE_WORD]: {},
   [StartState.SKIP]: {}
 };
 
@@ -66,6 +77,7 @@ const COMMENT_TRANSITION_TABLE: Record<CommentState, Partial<Record<CharClass, C
     [CharClass.EOP]: CommentState.NOT_A_COMMENT,
     [CharClass.SLASH]: CommentState.NOT_A_COMMENT,
     [CharClass.WHITESPACE]: CommentState.NOT_A_COMMENT,
+    [CharClass.LETTER]: CommentState.NOT_A_COMMENT,
     [CharClass.OTHER]: CommentState.NOT_A_COMMENT
   },
   [CommentState.IN_COMMENT]: {
@@ -76,6 +88,7 @@ const COMMENT_TRANSITION_TABLE: Record<CommentState, Partial<Record<CharClass, C
     [CharClass.EOP]: CommentState.IN_COMMENT,
     [CharClass.SLASH]: CommentState.IN_COMMENT,
     [CharClass.WHITESPACE]: CommentState.IN_COMMENT,
+    [CharClass.LETTER]: CommentState.IN_COMMENT,
     [CharClass.OTHER]: CommentState.IN_COMMENT
   },
   [CommentState.POSSIBLE_END]: {
@@ -86,6 +99,7 @@ const COMMENT_TRANSITION_TABLE: Record<CommentState, Partial<Record<CharClass, C
     [CharClass.CLOSE_BLOCK]: CommentState.IN_COMMENT,
     [CharClass.EOP]: CommentState.IN_COMMENT,
     [CharClass.WHITESPACE]: CommentState.IN_COMMENT,
+    [CharClass.LETTER]: CommentState.IN_COMMENT,
     [CharClass.OTHER]: CommentState.IN_COMMENT
   },
   [CommentState.TERMINATED]: {},
@@ -93,11 +107,41 @@ const COMMENT_TRANSITION_TABLE: Record<CommentState, Partial<Record<CharClass, C
   [CommentState.NOT_A_COMMENT]: {}
 };
 
+// Word DFA: consume one or more lowercase letters, then resolve keyword vs ID.
+const WORD_TRANSITION_TABLE: Record<WordState, Partial<Record<CharClass, WordState>>> = {
+  [WordState.START]: {
+    [CharClass.LETTER]: WordState.IN_WORD
+  },
+  [WordState.IN_WORD]: {
+    [CharClass.LETTER]: WordState.IN_WORD,
+    [CharClass.OPEN_BLOCK]: WordState.ACCEPT,
+    [CharClass.CLOSE_BLOCK]: WordState.ACCEPT,
+    [CharClass.EOP]: WordState.ACCEPT,
+    [CharClass.SLASH]: WordState.ACCEPT,
+    [CharClass.STAR]: WordState.ACCEPT,
+    [CharClass.WHITESPACE]: WordState.ACCEPT,
+    [CharClass.OTHER]: WordState.ACCEPT,
+    [CharClass.EOF]: WordState.ACCEPT
+  },
+  [WordState.ACCEPT]: {}
+};
+
 // Accepting start states that produce concrete tokens.
 const ACCEPTING_TOKENS: Partial<Record<StartState, TokenType>> = {
   [StartState.ACCEPT_OPEN_BLOCK]: TokenType.OPEN_BLOCK,
   [StartState.ACCEPT_CLOSE_BLOCK]: TokenType.CLOSE_BLOCK,
   [StartState.ACCEPT_EOP]: TokenType.EOP
+};
+
+const KEYWORD_TOKENS: Record<string, TokenType> = {
+  int: TokenType.I_TYPE,
+  string: TokenType.STRING_TYPE,
+  boolean: TokenType.BOOLEAN_TYPE,
+  true: TokenType.BOOL_TRUE,
+  false: TokenType.BOOL_FALSE,
+  print: TokenType.PRINT,
+  while: TokenType.WHILE,
+  if: TokenType.IF
 };
 
 export class Lexer {
@@ -161,6 +205,19 @@ export class Lexer {
         continue;
       }
 
+      // Lowercase words are scanned by a separate DFA, then resolved as keyword or ID.
+      if (state === StartState.POSSIBLE_WORD) {
+        const lexeme = this.consumeWordByDfa();
+        const tokenType = this.resolveWordTokenType(lexeme);
+
+        if (tokenType !== undefined) {
+          tokens.push(this.createToken(tokenType, lexeme, position));
+          this.debugToken(tokenType, lexeme, position.line, position.column);
+        }
+
+        continue;
+      }
+
       // Unknown or currently unsupported chars are consumed and ignored for now.
       this.consumeChar();
     }
@@ -200,6 +257,9 @@ export class Lexer {
     }
     if (char === "*") {
       return CharClass.STAR;
+    }
+    if (char >= "a" && char <= "z") {
+      return CharClass.LETTER;
     }
     if (char === " " || char === "\t" || char === "\r" || char === "\n") {
       return CharClass.WHITESPACE;
@@ -274,6 +334,41 @@ export class Lexer {
 
   private nextCommentStateByTable(state: CommentState, charClass: CharClass): CommentState {
     return COMMENT_TRANSITION_TABLE[state][charClass] ?? CommentState.UNTERMINATED;
+  }
+
+  private consumeWordByDfa(): string {
+    let lexeme = "";
+    let state = WordState.START;
+
+    while (state !== WordState.ACCEPT) {
+      const currentChar = this.peek();
+      const currentClass = this.classify(currentChar);
+      const nextState: WordState = WORD_TRANSITION_TABLE[state][currentClass] ?? WordState.ACCEPT;
+
+      if (nextState === WordState.ACCEPT) {
+        state = nextState;
+        continue;
+      }
+
+      lexeme += this.consumeChar();
+      state = nextState;
+    }
+
+    return lexeme;
+  }
+
+  private resolveWordTokenType(lexeme: string): TokenType | undefined {
+    const keywordToken = KEYWORD_TOKENS[lexeme];
+
+    if (keywordToken !== undefined) {
+      return keywordToken;
+    }
+
+    if (lexeme.length === 1) {
+      return TokenType.ID;
+    }
+
+    return undefined;
   }
 
   // Keeps line/column tracking accurate for token and warning locations.

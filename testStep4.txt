@@ -1,0 +1,7 @@
+{
+int a
+string b
+boolean c
+}$
+{while true {} if false {}}$
+{print a}$
