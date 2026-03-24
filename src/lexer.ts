@@ -12,6 +12,7 @@ enum StartState {
   ACCEPT_CLOSE_BLOCK = "ACCEPT_CLOSE_BLOCK",
   ACCEPT_EOP = "ACCEPT_EOP",
   POSSIBLE_COMMENT = "POSSIBLE_COMMENT",
+  POSSIBLE_OPERATOR = "POSSIBLE_OPERATOR",
   POSSIBLE_WORD = "POSSIBLE_WORD",
   SKIP = "SKIP"
 }
@@ -33,6 +34,18 @@ enum WordState {
   ACCEPT = "ACCEPT"
 }
 
+// Dedicated DFA states for operators that may be one or two characters long.
+enum OperatorState {
+  START = "START",
+  AFTER_ASSIGN = "AFTER_ASSIGN",
+  AFTER_BANG = "AFTER_BANG",
+  ACCEPT_ASSIGN = "ACCEPT_ASSIGN",
+  ACCEPT_EQUALITY = "ACCEPT_EQUALITY",
+  ACCEPT_INEQUALITY = "ACCEPT_INEQUALITY",
+  ACCEPT_INT_OP = "ACCEPT_INT_OP",
+  INVALID = "INVALID"
+}
+
 // Input alphabet classes consumed by DFA tables.
 enum CharClass {
   OPEN_BLOCK = "OPEN_BLOCK",
@@ -40,6 +53,9 @@ enum CharClass {
   EOP = "EOP",
   SLASH = "SLASH",
   STAR = "STAR",
+  ASSIGN = "ASSIGN",
+  BANG = "BANG",
+  PLUS = "PLUS",
   LETTER = "LETTER",
   WHITESPACE = "WHITESPACE",
   OTHER = "OTHER",
@@ -53,6 +69,9 @@ const START_TRANSITION_TABLE: Record<StartState, Partial<Record<CharClass, Start
     [CharClass.CLOSE_BLOCK]: StartState.ACCEPT_CLOSE_BLOCK,
     [CharClass.EOP]: StartState.ACCEPT_EOP,
     [CharClass.SLASH]: StartState.POSSIBLE_COMMENT,
+    [CharClass.ASSIGN]: StartState.POSSIBLE_OPERATOR,
+    [CharClass.BANG]: StartState.POSSIBLE_OPERATOR,
+    [CharClass.PLUS]: StartState.POSSIBLE_OPERATOR,
     [CharClass.LETTER]: StartState.POSSIBLE_WORD,
     [CharClass.WHITESPACE]: StartState.SKIP,
     [CharClass.OTHER]: StartState.SKIP,
@@ -63,6 +82,7 @@ const START_TRANSITION_TABLE: Record<StartState, Partial<Record<CharClass, Start
   [StartState.ACCEPT_CLOSE_BLOCK]: {},
   [StartState.ACCEPT_EOP]: {},
   [StartState.POSSIBLE_COMMENT]: {},
+  [StartState.POSSIBLE_OPERATOR]: {},
   [StartState.POSSIBLE_WORD]: {},
   [StartState.SKIP]: {}
 };
@@ -76,6 +96,9 @@ const COMMENT_TRANSITION_TABLE: Record<CommentState, Partial<Record<CharClass, C
     [CharClass.CLOSE_BLOCK]: CommentState.NOT_A_COMMENT,
     [CharClass.EOP]: CommentState.NOT_A_COMMENT,
     [CharClass.SLASH]: CommentState.NOT_A_COMMENT,
+    [CharClass.ASSIGN]: CommentState.NOT_A_COMMENT,
+    [CharClass.BANG]: CommentState.NOT_A_COMMENT,
+    [CharClass.PLUS]: CommentState.NOT_A_COMMENT,
     [CharClass.WHITESPACE]: CommentState.NOT_A_COMMENT,
     [CharClass.LETTER]: CommentState.NOT_A_COMMENT,
     [CharClass.OTHER]: CommentState.NOT_A_COMMENT
@@ -87,6 +110,9 @@ const COMMENT_TRANSITION_TABLE: Record<CommentState, Partial<Record<CharClass, C
     [CharClass.CLOSE_BLOCK]: CommentState.IN_COMMENT,
     [CharClass.EOP]: CommentState.IN_COMMENT,
     [CharClass.SLASH]: CommentState.IN_COMMENT,
+    [CharClass.ASSIGN]: CommentState.IN_COMMENT,
+    [CharClass.BANG]: CommentState.IN_COMMENT,
+    [CharClass.PLUS]: CommentState.IN_COMMENT,
     [CharClass.WHITESPACE]: CommentState.IN_COMMENT,
     [CharClass.LETTER]: CommentState.IN_COMMENT,
     [CharClass.OTHER]: CommentState.IN_COMMENT
@@ -98,6 +124,9 @@ const COMMENT_TRANSITION_TABLE: Record<CommentState, Partial<Record<CharClass, C
     [CharClass.OPEN_BLOCK]: CommentState.IN_COMMENT,
     [CharClass.CLOSE_BLOCK]: CommentState.IN_COMMENT,
     [CharClass.EOP]: CommentState.IN_COMMENT,
+    [CharClass.ASSIGN]: CommentState.IN_COMMENT,
+    [CharClass.BANG]: CommentState.IN_COMMENT,
+    [CharClass.PLUS]: CommentState.IN_COMMENT,
     [CharClass.WHITESPACE]: CommentState.IN_COMMENT,
     [CharClass.LETTER]: CommentState.IN_COMMENT,
     [CharClass.OTHER]: CommentState.IN_COMMENT
@@ -119,11 +148,56 @@ const WORD_TRANSITION_TABLE: Record<WordState, Partial<Record<CharClass, WordSta
     [CharClass.EOP]: WordState.ACCEPT,
     [CharClass.SLASH]: WordState.ACCEPT,
     [CharClass.STAR]: WordState.ACCEPT,
+    [CharClass.ASSIGN]: WordState.ACCEPT,
+    [CharClass.BANG]: WordState.ACCEPT,
+    [CharClass.PLUS]: WordState.ACCEPT,
     [CharClass.WHITESPACE]: WordState.ACCEPT,
     [CharClass.OTHER]: WordState.ACCEPT,
     [CharClass.EOF]: WordState.ACCEPT
   },
   [WordState.ACCEPT]: {}
+};
+
+// Operator DFA: supports =, ==, !=, and + with maximal munch.
+const OPERATOR_TRANSITION_TABLE: Record<OperatorState, Partial<Record<CharClass, OperatorState>>> = {
+  [OperatorState.START]: {
+    [CharClass.ASSIGN]: OperatorState.AFTER_ASSIGN,
+    [CharClass.BANG]: OperatorState.AFTER_BANG,
+    [CharClass.PLUS]: OperatorState.ACCEPT_INT_OP
+  },
+  [OperatorState.AFTER_ASSIGN]: {
+    [CharClass.OPEN_BLOCK]: OperatorState.ACCEPT_ASSIGN,
+    [CharClass.CLOSE_BLOCK]: OperatorState.ACCEPT_ASSIGN,
+    [CharClass.EOP]: OperatorState.ACCEPT_ASSIGN,
+    [CharClass.SLASH]: OperatorState.ACCEPT_ASSIGN,
+    [CharClass.STAR]: OperatorState.ACCEPT_ASSIGN,
+    [CharClass.ASSIGN]: OperatorState.ACCEPT_EQUALITY,
+    [CharClass.BANG]: OperatorState.ACCEPT_ASSIGN,
+    [CharClass.PLUS]: OperatorState.ACCEPT_ASSIGN,
+    [CharClass.LETTER]: OperatorState.ACCEPT_ASSIGN,
+    [CharClass.WHITESPACE]: OperatorState.ACCEPT_ASSIGN,
+    [CharClass.OTHER]: OperatorState.ACCEPT_ASSIGN,
+    [CharClass.EOF]: OperatorState.ACCEPT_ASSIGN
+  },
+  [OperatorState.AFTER_BANG]: {
+    [CharClass.ASSIGN]: OperatorState.ACCEPT_INEQUALITY,
+    [CharClass.OPEN_BLOCK]: OperatorState.INVALID,
+    [CharClass.CLOSE_BLOCK]: OperatorState.INVALID,
+    [CharClass.EOP]: OperatorState.INVALID,
+    [CharClass.SLASH]: OperatorState.INVALID,
+    [CharClass.STAR]: OperatorState.INVALID,
+    [CharClass.BANG]: OperatorState.INVALID,
+    [CharClass.PLUS]: OperatorState.INVALID,
+    [CharClass.LETTER]: OperatorState.INVALID,
+    [CharClass.WHITESPACE]: OperatorState.INVALID,
+    [CharClass.OTHER]: OperatorState.INVALID,
+    [CharClass.EOF]: OperatorState.INVALID
+  },
+  [OperatorState.ACCEPT_ASSIGN]: {},
+  [OperatorState.ACCEPT_EQUALITY]: {},
+  [OperatorState.ACCEPT_INEQUALITY]: {},
+  [OperatorState.ACCEPT_INT_OP]: {},
+  [OperatorState.INVALID]: {}
 };
 
 // Accepting start states that produce concrete tokens.
@@ -205,6 +279,23 @@ export class Lexer {
         continue;
       }
 
+      // Operator DFA handles one- and two-character operators with maximal munch.
+      if (state === StartState.POSSIBLE_OPERATOR) {
+        const operatorToken = this.consumeOperatorByDfa(position);
+
+        if (operatorToken !== undefined) {
+          tokens.push(operatorToken);
+          this.debugToken(
+            operatorToken.type,
+            operatorToken.lexeme,
+            operatorToken.position.line,
+            operatorToken.position.column
+          );
+        }
+
+        continue;
+      }
+
       // Lowercase words are scanned by a separate DFA, then resolved as keyword or ID.
       if (state === StartState.POSSIBLE_WORD) {
         const lexeme = this.consumeWordByDfa();
@@ -257,6 +348,15 @@ export class Lexer {
     }
     if (char === "*") {
       return CharClass.STAR;
+    }
+    if (char === "=") {
+      return CharClass.ASSIGN;
+    }
+    if (char === "!") {
+      return CharClass.BANG;
+    }
+    if (char === "+") {
+      return CharClass.PLUS;
     }
     if (char >= "a" && char <= "z") {
       return CharClass.LETTER;
@@ -355,6 +455,39 @@ export class Lexer {
     }
 
     return lexeme;
+  }
+
+  private consumeOperatorByDfa(position: { line: number; column: number; index: number }): Token | undefined {
+    const firstClass = this.classify(this.peek());
+    let state = OPERATOR_TRANSITION_TABLE[OperatorState.START][firstClass] ?? OperatorState.INVALID;
+    let lexeme = this.consumeChar();
+
+    if (state === OperatorState.ACCEPT_INT_OP) {
+      return this.createToken(TokenType.INT_OP, lexeme, position);
+    }
+
+    while (true) {
+      const nextClass = this.classify(this.peek());
+      state = OPERATOR_TRANSITION_TABLE[state][nextClass] ?? OperatorState.INVALID;
+
+      if (state === OperatorState.ACCEPT_ASSIGN) {
+        return this.createToken(TokenType.ASSIGN_OP, lexeme, position);
+      }
+
+      if (state === OperatorState.ACCEPT_EQUALITY) {
+        lexeme += this.consumeChar();
+        return this.createToken(TokenType.EQUALITY_OP, lexeme, position);
+      }
+
+      if (state === OperatorState.ACCEPT_INEQUALITY) {
+        lexeme += this.consumeChar();
+        return this.createToken(TokenType.INEQUALITY_OP, lexeme, position);
+      }
+
+      if (state === OperatorState.INVALID) {
+        return undefined;
+      }
+    }
   }
 
   private resolveWordTokenType(lexeme: string): TokenType | undefined {
