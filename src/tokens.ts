@@ -10,8 +10,6 @@ export enum TokenType {
   INEQUALITY_OP = "INEQUALITY_OP",
   INT_OP = "INT_OP",
   I_TYPE = "I_TYPE",
-  STRING_TYPE = "STRING_TYPE",
-  BOOLEAN_TYPE = "BOOLEAN_TYPE",
   PRINT = "PRINT",
   WHILE = "WHILE",
   IF = "IF",

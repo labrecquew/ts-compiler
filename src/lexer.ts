@@ -297,16 +297,40 @@ const ACCEPTING_TOKENS: Partial<Record<StartState, TokenType>> = {
   [StartState.ACCEPT_EOP]: TokenType.EOP
 };
 
+// All three declared types share the same token in this grammar/output format.
 const KEYWORD_TOKENS: Record<string, TokenType> = {
   int: TokenType.I_TYPE,
-  string: TokenType.STRING_TYPE,
-  boolean: TokenType.BOOLEAN_TYPE,
+  string: TokenType.I_TYPE,
+  boolean: TokenType.I_TYPE,
   true: TokenType.BOOL_TRUE,
   false: TokenType.BOOL_FALSE,
   print: TokenType.PRINT,
   while: TokenType.WHILE,
   if: TokenType.IF
 };
+
+enum CommentScanResult {
+  TERMINATED = "TERMINATED",
+  UNTERMINATED = "UNTERMINATED",
+  NOT_A_COMMENT = "NOT_A_COMMENT"
+}
+
+interface CommentScanOutcome {
+  result: CommentScanResult;
+}
+
+interface StringScanOutcome {
+  tokens: Token[];
+  terminated: boolean;
+  errorMessage?: string;
+  errorPosition?: { line: number; column: number; index: number };
+}
+
+interface OperatorScanOutcome {
+  token?: Token;
+  errorMessage?: string;
+  errorLexeme: string;
+}
 
 export class Lexer {
   private readonly source: string;
@@ -325,12 +349,15 @@ export class Lexer {
     const tokens: Token[] = [];
     let currentProgram = 0;
     let inProgram = false;
+    // Track per-program failures so the summary printed at '$' is accurate.
+    let currentProgramErrors = 0;
 
     while (!this.isAtEnd()) {
       // A non-whitespace char starts a new program segment until we hit EOP.
       if (!inProgram && !this.isIgnoredOutsideString(this.classify(this.peek()))) {
         currentProgram += 1;
         inProgram = true;
+        currentProgramErrors = 0;
         console.log(`INFO  Lexer - Lexing program ${currentProgram}...`);
       }
 
@@ -346,7 +373,7 @@ export class Lexer {
 
         // EOP marks the end of one program in a multi-program input stream.
         if (acceptingToken === TokenType.EOP) {
-          console.log("INFO  Lexer - Lex completed with 0 errors");
+          this.finishProgram(currentProgramErrors);
           inProgram = false;
         }
 
@@ -356,13 +383,22 @@ export class Lexer {
       // Slash can start a block comment; comment DFA handles the rest.
       if (state === StartState.POSSIBLE_COMMENT) {
         const commentStart = this.currentPosition();
-        const commentTerminated = this.consumeCommentByDfa();
+        const commentOutcome = this.consumeCommentByDfa();
 
-        if (commentTerminated === false) {
+        if (commentOutcome.result === CommentScanResult.UNTERMINATED) {
           this.warn(
             commentStart.line,
             commentStart.column,
             "Unterminated comment block. Reached end of input before finding closing '*/'. Add '*/' to end the comment."
+          );
+        }
+
+        if (commentOutcome.result === CommentScanResult.NOT_A_COMMENT) {
+          currentProgramErrors += 1;
+          this.error(
+            commentStart.line,
+            commentStart.column,
+            "Unrecognized Token: /. The grammar only allows '/' as the start of a block comment '/* ... */'. Replace it with a valid token or complete the comment opener."
           );
         }
 
@@ -371,15 +407,22 @@ export class Lexer {
 
       // Operator DFA handles one- and two-character operators with maximal munch.
       if (state === StartState.POSSIBLE_OPERATOR) {
-        const operatorToken = this.consumeOperatorByDfa(position);
+        const operatorOutcome = this.consumeOperatorByDfa(position);
 
-        if (operatorToken !== undefined) {
-          tokens.push(operatorToken);
+        if (operatorOutcome.token !== undefined) {
+          tokens.push(operatorOutcome.token);
           this.debugToken(
-            operatorToken.type,
-            operatorToken.lexeme,
-            operatorToken.position.line,
-            operatorToken.position.column
+            operatorOutcome.token.type,
+            operatorOutcome.token.lexeme,
+            operatorOutcome.token.position.line,
+            operatorOutcome.token.position.column
+          );
+        } else {
+          currentProgramErrors += 1;
+          this.error(
+            position.line,
+            position.column,
+            operatorOutcome.errorMessage ?? "Unrecognized Token: <operator>. This operator is not valid in the grammar."
           );
         }
 
@@ -394,6 +437,13 @@ export class Lexer {
         if (tokenType !== undefined) {
           tokens.push(this.createToken(tokenType, lexeme, position));
           this.debugToken(tokenType, lexeme, position.line, position.column);
+        } else {
+          currentProgramErrors += 1;
+          this.error(
+            position.line,
+            position.column,
+            `Unrecognized Token: ${lexeme}. The grammar allows multi-character words only for reserved keywords, and identifiers must be a single lowercase letter. Use a keyword or split this into valid one-character identifiers.`
+          );
         }
 
         continue;
@@ -418,9 +468,9 @@ export class Lexer {
 
       // String DFA emits opening quote, char/space content, and closing quote tokens.
       if (state === StartState.POSSIBLE_STRING) {
-        const stringTokens = this.consumeStringByDfa(position);
+        const stringOutcome = this.consumeStringByDfa(position);
 
-        for (const stringToken of stringTokens) {
+        for (const stringToken of stringOutcome.tokens) {
           tokens.push(stringToken);
           this.debugToken(
             stringToken.type,
@@ -430,11 +480,48 @@ export class Lexer {
           );
         }
 
+        if (!stringOutcome.terminated && stringOutcome.errorMessage !== undefined && stringOutcome.errorPosition !== undefined) {
+          currentProgramErrors += 1;
+          this.error(
+            stringOutcome.errorPosition.line,
+            stringOutcome.errorPosition.column,
+            stringOutcome.errorMessage
+          );
+        }
+
         continue;
       }
 
-      // Unknown or currently unsupported chars are consumed and ignored for now.
-      this.consumeChar();
+      const currentCharClass = this.classify(this.peek());
+
+      if (this.isIgnoredOutsideString(currentCharClass)) {
+        this.consumeChar();
+        continue;
+      }
+
+      const badPosition = this.currentPosition();
+      const badLexeme = this.consumeChar();
+      currentProgramErrors += 1;
+      this.error(
+        badPosition.line,
+        badPosition.column,
+        `Unrecognized Token: ${badLexeme}. This character is not part of the grammar at this position. Remove it or replace it with a valid token.`
+      );
+    }
+
+    if (inProgram) {
+      const syntheticEopPosition = this.currentPosition();
+      const syntheticEop = this.createToken(TokenType.EOP, "$", syntheticEopPosition);
+
+      // Step 7 requires warning about a missing '$' but still letting the program finish.
+      this.warn(
+        syntheticEopPosition.line,
+        syntheticEopPosition.column,
+        "Missing end-of-program marker '$'. The lexer inserted a synthetic '$' at end of input so this program can be finalized."
+      );
+      tokens.push(syntheticEop);
+      this.debugToken(TokenType.EOP, syntheticEop.lexeme, syntheticEopPosition.line, syntheticEopPosition.column);
+      this.finishProgram(currentProgramErrors);
     }
 
     return tokens;
@@ -537,10 +624,10 @@ export class Lexer {
       return;
     }
 
-    console.log(`DEBUG Lexer - ${type} '${lexeme}' found at (${line}:${column})`);
+    console.log(`DEBUG Lexer - ${type} [ ${lexeme} ] found at (${line}:${column})`);
   }
 
-  private consumeCommentByDfa(): boolean {
+  private consumeCommentByDfa(): CommentScanOutcome {
     let state = CommentState.EXPECT_STAR;
 
     // We enter here after seeing '/', so consume it before checking for '*'.
@@ -553,16 +640,16 @@ export class Lexer {
 
       // '/x' where x != '*' is not a block comment in this grammar stage.
       if (state === CommentState.NOT_A_COMMENT) {
-        return true;
+        return { result: CommentScanResult.NOT_A_COMMENT };
       }
       // EOF reached before comment terminator.
       if (state === CommentState.UNTERMINATED) {
-        return false;
+        return { result: CommentScanResult.UNTERMINATED };
       }
       // We are on the trailing '/' in '*/', consume it and finish.
       if (state === CommentState.TERMINATED) {
         this.consumeChar(); // consume '/'
-        return true;
+        return { result: CommentScanResult.TERMINATED };
       }
 
       this.consumeChar();
@@ -625,7 +712,7 @@ export class Lexer {
     return tokens;
   }
 
-  private consumeStringByDfa(position: { line: number; column: number; index: number }): Token[] {
+  private consumeStringByDfa(position: { line: number; column: number; index: number }): StringScanOutcome {
     const tokens: Token[] = [];
     let state = StringState.START;
 
@@ -663,19 +750,34 @@ export class Lexer {
         continue;
       }
 
+      if (nextState === StringState.UNTERMINATED) {
+        return {
+          tokens,
+          terminated: false,
+          errorPosition: tokenPosition,
+          errorMessage: this.buildStringErrorMessage(position, currentChar)
+        };
+      }
+
       state = nextState;
     }
 
-    return tokens;
+    return {
+      tokens,
+      terminated: true
+    };
   }
 
-  private consumeOperatorByDfa(position: { line: number; column: number; index: number }): Token | undefined {
+  private consumeOperatorByDfa(position: { line: number; column: number; index: number }): OperatorScanOutcome {
     const firstClass = this.classify(this.peek());
     let state = OPERATOR_TRANSITION_TABLE[OperatorState.START][firstClass] ?? OperatorState.INVALID;
     let lexeme = this.consumeChar();
 
     if (state === OperatorState.ACCEPT_INT_OP) {
-      return this.createToken(TokenType.INT_OP, lexeme, position);
+      return {
+        token: this.createToken(TokenType.INT_OP, lexeme, position),
+        errorLexeme: lexeme
+      };
     }
 
     while (true) {
@@ -683,21 +785,36 @@ export class Lexer {
       state = OPERATOR_TRANSITION_TABLE[state][nextClass] ?? OperatorState.INVALID;
 
       if (state === OperatorState.ACCEPT_ASSIGN) {
-        return this.createToken(TokenType.ASSIGN_OP, lexeme, position);
+        return {
+          token: this.createToken(TokenType.ASSIGN_OP, lexeme, position),
+          errorLexeme: lexeme
+        };
       }
 
       if (state === OperatorState.ACCEPT_EQUALITY) {
         lexeme += this.consumeChar();
-        return this.createToken(TokenType.EQUALITY_OP, lexeme, position);
+        return {
+          token: this.createToken(TokenType.EQUALITY_OP, lexeme, position),
+          errorLexeme: lexeme
+        };
       }
 
       if (state === OperatorState.ACCEPT_INEQUALITY) {
         lexeme += this.consumeChar();
-        return this.createToken(TokenType.INEQUALITY_OP, lexeme, position);
+        return {
+          token: this.createToken(TokenType.INEQUALITY_OP, lexeme, position),
+          errorLexeme: lexeme
+        };
       }
 
       if (state === OperatorState.INVALID) {
-        return undefined;
+        return {
+          errorLexeme: lexeme,
+          errorMessage:
+            lexeme === "!"
+              ? "Unrecognized Token: !. The grammar does not allow a standalone '!'; boolean inequality must be written as '!='. Add '=' after '!' or replace it with a valid token."
+              : `Unrecognized Token: ${lexeme}. This operator is not valid in the grammar. Replace it with '=', '==', '!=', or '+'.`
+        };
       }
     }
   }
@@ -709,11 +826,46 @@ export class Lexer {
       return keywordToken;
     }
 
+    // Non-keyword identifiers are a single lowercase character in this grammar.
     if (lexeme.length === 1) {
       return TokenType.ID;
     }
 
     return undefined;
+  }
+
+  private buildStringErrorMessage(
+    startPosition: { line: number; column: number; index: number },
+    offendingChar: string
+  ): string {
+    const printableChar = this.formatCharForMessage(offendingChar);
+
+    if (offendingChar === "\0") {
+      return `Unterminated string beginning at ${startPosition.line}:${startPosition.column}. Reached end of input before finding the closing quote. Add a closing '"' before the program ends.`;
+    }
+
+    if (offendingChar === "\n" || offendingChar === "\r") {
+      return `Unterminated string beginning at ${startPosition.line}:${startPosition.column}. Encountered ${printableChar} before a closing quote. Strings may only contain lowercase letters and spaces on a single line. Close the string before the line break.`;
+    }
+
+    return `Unterminated string beginning at ${startPosition.line}:${startPosition.column}. Encountered ${printableChar} before a closing quote. Strings may only contain lowercase letters and spaces. Remove the invalid character or close the string with '"'.`;
+  }
+
+  private formatCharForMessage(char: string): string {
+    if (char === "\0") {
+      return "EOF";
+    }
+    if (char === "\n") {
+      return "newline";
+    }
+    if (char === "\r") {
+      return "carriage return";
+    }
+    if (char === "\t") {
+      return "tab";
+    }
+
+    return `'${char}'`;
   }
 
   // Keeps line/column tracking accurate for token and warning locations.
@@ -730,5 +882,18 @@ export class Lexer {
   // Warning doesn't terminate the program, it just warns the user.
   private warn(line: number, column: number, message: string): void {
     console.log(`WARN  Lexer - Warning:${line}:${column} ${message}`);
+  }
+
+  private error(line: number, column: number, message: string): void {
+    console.log(`ERROR Lexer - Error:${line}:${column} ${message}`);
+  }
+
+  private finishProgram(errorCount: number): void {
+    if (errorCount === 0) {
+      console.log("INFO  Lexer - Lex completed with 0 errors");
+      return;
+    }
+
+    console.log(`ERROR Lexer - Lex failed with ${errorCount} error(s)`);
   }
 }
