@@ -14,6 +14,8 @@ enum StartState {
   POSSIBLE_COMMENT = "POSSIBLE_COMMENT",
   POSSIBLE_OPERATOR = "POSSIBLE_OPERATOR",
   POSSIBLE_WORD = "POSSIBLE_WORD",
+  POSSIBLE_DIGITS = "POSSIBLE_DIGITS",
+  POSSIBLE_STRING = "POSSIBLE_STRING",
   SKIP = "SKIP"
 }
 
@@ -46,6 +48,21 @@ enum OperatorState {
   INVALID = "INVALID"
 }
 
+// Dedicated DFA states for runs of digits.
+enum DigitState {
+  START = "START",
+  IN_DIGITS = "IN_DIGITS",
+  ACCEPT = "ACCEPT"
+}
+
+// Dedicated DFA states for quoted strings with char and space contents.
+enum StringState {
+  START = "START",
+  IN_STRING = "IN_STRING",
+  ACCEPT = "ACCEPT",
+  UNTERMINATED = "UNTERMINATED"
+}
+
 // Input alphabet classes consumed by DFA tables.
 enum CharClass {
   OPEN_BLOCK = "OPEN_BLOCK",
@@ -56,6 +73,9 @@ enum CharClass {
   ASSIGN = "ASSIGN",
   BANG = "BANG",
   PLUS = "PLUS",
+  DIGIT = "DIGIT",
+  QUOTE = "QUOTE",
+  SPACE = "SPACE",
   LETTER = "LETTER",
   WHITESPACE = "WHITESPACE",
   OTHER = "OTHER",
@@ -73,6 +93,9 @@ const START_TRANSITION_TABLE: Record<StartState, Partial<Record<CharClass, Start
     [CharClass.BANG]: StartState.POSSIBLE_OPERATOR,
     [CharClass.PLUS]: StartState.POSSIBLE_OPERATOR,
     [CharClass.LETTER]: StartState.POSSIBLE_WORD,
+    [CharClass.DIGIT]: StartState.POSSIBLE_DIGITS,
+    [CharClass.QUOTE]: StartState.POSSIBLE_STRING,
+    [CharClass.SPACE]: StartState.SKIP,
     [CharClass.WHITESPACE]: StartState.SKIP,
     [CharClass.OTHER]: StartState.SKIP,
     [CharClass.STAR]: StartState.SKIP,
@@ -84,6 +107,8 @@ const START_TRANSITION_TABLE: Record<StartState, Partial<Record<CharClass, Start
   [StartState.POSSIBLE_COMMENT]: {},
   [StartState.POSSIBLE_OPERATOR]: {},
   [StartState.POSSIBLE_WORD]: {},
+  [StartState.POSSIBLE_DIGITS]: {},
+  [StartState.POSSIBLE_STRING]: {},
   [StartState.SKIP]: {}
 };
 
@@ -99,6 +124,9 @@ const COMMENT_TRANSITION_TABLE: Record<CommentState, Partial<Record<CharClass, C
     [CharClass.ASSIGN]: CommentState.NOT_A_COMMENT,
     [CharClass.BANG]: CommentState.NOT_A_COMMENT,
     [CharClass.PLUS]: CommentState.NOT_A_COMMENT,
+    [CharClass.DIGIT]: CommentState.NOT_A_COMMENT,
+    [CharClass.QUOTE]: CommentState.NOT_A_COMMENT,
+    [CharClass.SPACE]: CommentState.NOT_A_COMMENT,
     [CharClass.WHITESPACE]: CommentState.NOT_A_COMMENT,
     [CharClass.LETTER]: CommentState.NOT_A_COMMENT,
     [CharClass.OTHER]: CommentState.NOT_A_COMMENT
@@ -113,6 +141,9 @@ const COMMENT_TRANSITION_TABLE: Record<CommentState, Partial<Record<CharClass, C
     [CharClass.ASSIGN]: CommentState.IN_COMMENT,
     [CharClass.BANG]: CommentState.IN_COMMENT,
     [CharClass.PLUS]: CommentState.IN_COMMENT,
+    [CharClass.DIGIT]: CommentState.IN_COMMENT,
+    [CharClass.QUOTE]: CommentState.IN_COMMENT,
+    [CharClass.SPACE]: CommentState.IN_COMMENT,
     [CharClass.WHITESPACE]: CommentState.IN_COMMENT,
     [CharClass.LETTER]: CommentState.IN_COMMENT,
     [CharClass.OTHER]: CommentState.IN_COMMENT
@@ -127,6 +158,9 @@ const COMMENT_TRANSITION_TABLE: Record<CommentState, Partial<Record<CharClass, C
     [CharClass.ASSIGN]: CommentState.IN_COMMENT,
     [CharClass.BANG]: CommentState.IN_COMMENT,
     [CharClass.PLUS]: CommentState.IN_COMMENT,
+    [CharClass.DIGIT]: CommentState.IN_COMMENT,
+    [CharClass.QUOTE]: CommentState.IN_COMMENT,
+    [CharClass.SPACE]: CommentState.IN_COMMENT,
     [CharClass.WHITESPACE]: CommentState.IN_COMMENT,
     [CharClass.LETTER]: CommentState.IN_COMMENT,
     [CharClass.OTHER]: CommentState.IN_COMMENT
@@ -151,11 +185,65 @@ const WORD_TRANSITION_TABLE: Record<WordState, Partial<Record<CharClass, WordSta
     [CharClass.ASSIGN]: WordState.ACCEPT,
     [CharClass.BANG]: WordState.ACCEPT,
     [CharClass.PLUS]: WordState.ACCEPT,
+    [CharClass.DIGIT]: WordState.ACCEPT,
+    [CharClass.QUOTE]: WordState.ACCEPT,
+    [CharClass.SPACE]: WordState.ACCEPT,
     [CharClass.WHITESPACE]: WordState.ACCEPT,
     [CharClass.OTHER]: WordState.ACCEPT,
     [CharClass.EOF]: WordState.ACCEPT
   },
   [WordState.ACCEPT]: {}
+};
+
+// Digit DFA: consumes one or more adjacent digits.
+const DIGIT_TRANSITION_TABLE: Record<DigitState, Partial<Record<CharClass, DigitState>>> = {
+  [DigitState.START]: {
+    [CharClass.DIGIT]: DigitState.IN_DIGITS
+  },
+  [DigitState.IN_DIGITS]: {
+    [CharClass.DIGIT]: DigitState.IN_DIGITS,
+    [CharClass.OPEN_BLOCK]: DigitState.ACCEPT,
+    [CharClass.CLOSE_BLOCK]: DigitState.ACCEPT,
+    [CharClass.EOP]: DigitState.ACCEPT,
+    [CharClass.SLASH]: DigitState.ACCEPT,
+    [CharClass.STAR]: DigitState.ACCEPT,
+    [CharClass.ASSIGN]: DigitState.ACCEPT,
+    [CharClass.BANG]: DigitState.ACCEPT,
+    [CharClass.PLUS]: DigitState.ACCEPT,
+    [CharClass.QUOTE]: DigitState.ACCEPT,
+    [CharClass.SPACE]: DigitState.ACCEPT,
+    [CharClass.LETTER]: DigitState.ACCEPT,
+    [CharClass.WHITESPACE]: DigitState.ACCEPT,
+    [CharClass.OTHER]: DigitState.ACCEPT,
+    [CharClass.EOF]: DigitState.ACCEPT
+  },
+  [DigitState.ACCEPT]: {}
+};
+
+// String DFA: starts at a quote, stays inside on chars/spaces, and accepts on closing quote.
+const STRING_TRANSITION_TABLE: Record<StringState, Partial<Record<CharClass, StringState>>> = {
+  [StringState.START]: {
+    [CharClass.QUOTE]: StringState.IN_STRING
+  },
+  [StringState.IN_STRING]: {
+    [CharClass.LETTER]: StringState.IN_STRING,
+    [CharClass.SPACE]: StringState.IN_STRING,
+    [CharClass.QUOTE]: StringState.ACCEPT,
+    [CharClass.EOF]: StringState.UNTERMINATED,
+    [CharClass.WHITESPACE]: StringState.UNTERMINATED,
+    [CharClass.OPEN_BLOCK]: StringState.UNTERMINATED,
+    [CharClass.CLOSE_BLOCK]: StringState.UNTERMINATED,
+    [CharClass.EOP]: StringState.UNTERMINATED,
+    [CharClass.SLASH]: StringState.UNTERMINATED,
+    [CharClass.STAR]: StringState.UNTERMINATED,
+    [CharClass.ASSIGN]: StringState.UNTERMINATED,
+    [CharClass.BANG]: StringState.UNTERMINATED,
+    [CharClass.PLUS]: StringState.UNTERMINATED,
+    [CharClass.DIGIT]: StringState.UNTERMINATED,
+    [CharClass.OTHER]: StringState.UNTERMINATED
+  },
+  [StringState.ACCEPT]: {},
+  [StringState.UNTERMINATED]: {}
 };
 
 // Operator DFA: supports =, ==, !=, and + with maximal munch.
@@ -175,6 +263,7 @@ const OPERATOR_TRANSITION_TABLE: Record<OperatorState, Partial<Record<CharClass,
     [CharClass.BANG]: OperatorState.ACCEPT_ASSIGN,
     [CharClass.PLUS]: OperatorState.ACCEPT_ASSIGN,
     [CharClass.LETTER]: OperatorState.ACCEPT_ASSIGN,
+    [CharClass.SPACE]: OperatorState.ACCEPT_ASSIGN,
     [CharClass.WHITESPACE]: OperatorState.ACCEPT_ASSIGN,
     [CharClass.OTHER]: OperatorState.ACCEPT_ASSIGN,
     [CharClass.EOF]: OperatorState.ACCEPT_ASSIGN
@@ -189,6 +278,7 @@ const OPERATOR_TRANSITION_TABLE: Record<OperatorState, Partial<Record<CharClass,
     [CharClass.BANG]: OperatorState.INVALID,
     [CharClass.PLUS]: OperatorState.INVALID,
     [CharClass.LETTER]: OperatorState.INVALID,
+    [CharClass.SPACE]: OperatorState.INVALID,
     [CharClass.WHITESPACE]: OperatorState.INVALID,
     [CharClass.OTHER]: OperatorState.INVALID,
     [CharClass.EOF]: OperatorState.INVALID
@@ -238,7 +328,7 @@ export class Lexer {
 
     while (!this.isAtEnd()) {
       // A non-whitespace char starts a new program segment until we hit EOP.
-      if (!inProgram && this.classify(this.peek()) !== CharClass.WHITESPACE) {
+      if (!inProgram && !this.isIgnoredOutsideString(this.classify(this.peek()))) {
         currentProgram += 1;
         inProgram = true;
         console.log(`INFO  Lexer - Lexing program ${currentProgram}...`);
@@ -309,6 +399,40 @@ export class Lexer {
         continue;
       }
 
+      // Digit DFA groups adjacent digits, then emits one DIGIT token per character.
+      if (state === StartState.POSSIBLE_DIGITS) {
+        const digitTokens = this.consumeDigitsByDfa(position);
+
+        for (const digitToken of digitTokens) {
+          tokens.push(digitToken);
+          this.debugToken(
+            digitToken.type,
+            digitToken.lexeme,
+            digitToken.position.line,
+            digitToken.position.column
+          );
+        }
+
+        continue;
+      }
+
+      // String DFA emits opening quote, char/space content, and closing quote tokens.
+      if (state === StartState.POSSIBLE_STRING) {
+        const stringTokens = this.consumeStringByDfa(position);
+
+        for (const stringToken of stringTokens) {
+          tokens.push(stringToken);
+          this.debugToken(
+            stringToken.type,
+            stringToken.lexeme,
+            stringToken.position.line,
+            stringToken.position.column
+          );
+        }
+
+        continue;
+      }
+
       // Unknown or currently unsupported chars are consumed and ignored for now.
       this.consumeChar();
     }
@@ -358,10 +482,19 @@ export class Lexer {
     if (char === "+") {
       return CharClass.PLUS;
     }
+    if (char >= "0" && char <= "9") {
+      return CharClass.DIGIT;
+    }
+    if (char === "\"") {
+      return CharClass.QUOTE;
+    }
+    if (char === " ") {
+      return CharClass.SPACE;
+    }
     if (char >= "a" && char <= "z") {
       return CharClass.LETTER;
     }
-    if (char === " " || char === "\t" || char === "\r" || char === "\n") {
+    if (char === "\t" || char === "\r" || char === "\n") {
       return CharClass.WHITESPACE;
     }
     return CharClass.OTHER;
@@ -371,6 +504,10 @@ export class Lexer {
   private nextStartState(): StartState {
     const charClass = this.classify(this.peek());
     return START_TRANSITION_TABLE[StartState.START][charClass] ?? StartState.SKIP;
+  }
+
+  private isIgnoredOutsideString(charClass: CharClass): boolean {
+    return charClass === CharClass.SPACE || charClass === CharClass.WHITESPACE;
   }
 
   private consumeChar(): string {
@@ -455,6 +592,81 @@ export class Lexer {
     }
 
     return lexeme;
+  }
+
+  private consumeDigitsByDfa(position: { line: number; column: number; index: number }): Token[] {
+    const tokens: Token[] = [];
+    let lexeme = "";
+    let state = DigitState.START;
+
+    while (state !== DigitState.ACCEPT) {
+      const currentClass = this.classify(this.peek());
+      const nextState: DigitState = DIGIT_TRANSITION_TABLE[state][currentClass] ?? DigitState.ACCEPT;
+
+      if (nextState === DigitState.ACCEPT) {
+        state = nextState;
+        continue;
+      }
+
+      lexeme += this.consumeChar();
+      state = nextState;
+    }
+
+    for (let offset = 0; offset < lexeme.length; offset += 1) {
+      tokens.push(
+        this.createToken(TokenType.DIGIT, lexeme[offset], {
+          line: position.line,
+          column: position.column + offset,
+          index: position.index + offset
+        })
+      );
+    }
+
+    return tokens;
+  }
+
+  private consumeStringByDfa(position: { line: number; column: number; index: number }): Token[] {
+    const tokens: Token[] = [];
+    let state = StringState.START;
+
+    while (state !== StringState.ACCEPT && state !== StringState.UNTERMINATED) {
+      const currentChar = this.peek();
+      const currentClass = this.classify(currentChar);
+      const nextState: StringState = STRING_TRANSITION_TABLE[state][currentClass] ?? StringState.UNTERMINATED;
+      const tokenPosition = this.currentPosition();
+
+      if (state === StringState.START && currentClass === CharClass.QUOTE) {
+        const lexeme = this.consumeChar();
+        tokens.push(this.createToken(TokenType.QUOTE, lexeme, tokenPosition));
+        state = nextState;
+        continue;
+      }
+
+      if (state === StringState.IN_STRING && currentClass === CharClass.QUOTE) {
+        const lexeme = this.consumeChar();
+        tokens.push(this.createToken(TokenType.QUOTE, lexeme, tokenPosition));
+        state = nextState;
+        continue;
+      }
+
+      if (state === StringState.IN_STRING && currentClass === CharClass.LETTER) {
+        const lexeme = this.consumeChar();
+        tokens.push(this.createToken(TokenType.CHAR, lexeme, tokenPosition));
+        state = nextState;
+        continue;
+      }
+
+      if (state === StringState.IN_STRING && currentClass === CharClass.SPACE) {
+        const lexeme = this.consumeChar();
+        tokens.push(this.createToken(TokenType.SPACE, lexeme, tokenPosition));
+        state = nextState;
+        continue;
+      }
+
+      state = nextState;
+    }
+
+    return tokens;
   }
 
   private consumeOperatorByDfa(position: { line: number; column: number; index: number }): Token | undefined {
