@@ -1,6 +1,8 @@
 import fs from "node:fs";
 import { Lexer } from "./lexer";
 
+const CLI_USAGE = "Usage: npm start -- [--quiet|--debug] <filePath>";
+
 interface CliOptions {
   filePath: string;
   debug: boolean;
@@ -28,13 +30,13 @@ function parseCliOptions(argv: string[]): CliOptions {
     }
 
     console.error(`Unexpected argument: ${arg}`);
-    console.error("Usage: npm start -- [--quiet|--debug] [filePath]");
+    console.error(CLI_USAGE);
     process.exit(1);
   }
 
   if (filePath === undefined) {
     console.error("Missing required file path.");
-    console.error("Usage: npm start -- [--quiet|--debug] <filePath>");
+    console.error(CLI_USAGE);
     process.exit(1);
   }
 
