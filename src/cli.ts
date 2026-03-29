@@ -2,7 +2,7 @@ import fs from "node:fs";
 import { Lexer } from "./lexer";
 
 interface CliOptions {
-  filePath?: string;
+  filePath: string;
   debug: boolean;
 }
 
@@ -22,11 +22,6 @@ function parseCliOptions(argv: string[]): CliOptions {
       continue;
     }
 
-    if (arg === "--help" || arg === "-h") {
-      console.log("Usage: npm start -- [--quiet|--debug] [filePath]");
-      process.exit(0);
-    }
-
     if (filePath === undefined) {
       filePath = arg;
       continue;
@@ -37,15 +32,17 @@ function parseCliOptions(argv: string[]): CliOptions {
     process.exit(1);
   }
 
+  if (filePath === undefined) {
+    console.error("Missing required file path.");
+    console.error("Usage: npm start -- [--quiet|--debug] <filePath>");
+    process.exit(1);
+  }
+
   return { filePath, debug };
 }
 
-function readInput(filePath?: string): string {
-  if (filePath) {
-    return fs.readFileSync(filePath, "utf8");
-  }
-
-  return fs.readFileSync(0, "utf8");
+function readInput(filePath: string): string {
+  return fs.readFileSync(filePath, "utf8");
 }
 
 function main(): void {

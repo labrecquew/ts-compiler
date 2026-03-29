@@ -1,0 +1,7 @@
+{print(a)}$
+{print("ab c")}$
+{if (a==b) {}}$
+{if (a!=b) {}}$
+{while true {}}$
+{while false {}}$
+{a = 1+23}$

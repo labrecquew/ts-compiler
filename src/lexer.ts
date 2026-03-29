@@ -10,6 +10,8 @@ enum StartState {
   START = "START",
   ACCEPT_OPEN_BLOCK = "ACCEPT_OPEN_BLOCK",
   ACCEPT_CLOSE_BLOCK = "ACCEPT_CLOSE_BLOCK",
+  ACCEPT_OPEN_PAREN = "ACCEPT_OPEN_PAREN",
+  ACCEPT_CLOSE_PAREN = "ACCEPT_CLOSE_PAREN",
   ACCEPT_EOP = "ACCEPT_EOP",
   POSSIBLE_COMMENT = "POSSIBLE_COMMENT",
   POSSIBLE_OPERATOR = "POSSIBLE_OPERATOR",
@@ -67,6 +69,8 @@ enum StringState {
 enum CharClass {
   OPEN_BLOCK = "OPEN_BLOCK",
   CLOSE_BLOCK = "CLOSE_BLOCK",
+  OPEN_PAREN = "OPEN_PAREN",
+  CLOSE_PAREN = "CLOSE_PAREN",
   EOP = "EOP",
   SLASH = "SLASH",
   STAR = "STAR",
@@ -87,6 +91,8 @@ const START_TRANSITION_TABLE: Record<StartState, Partial<Record<CharClass, Start
   [StartState.START]: {
     [CharClass.OPEN_BLOCK]: StartState.ACCEPT_OPEN_BLOCK,
     [CharClass.CLOSE_BLOCK]: StartState.ACCEPT_CLOSE_BLOCK,
+    [CharClass.OPEN_PAREN]: StartState.ACCEPT_OPEN_PAREN,
+    [CharClass.CLOSE_PAREN]: StartState.ACCEPT_CLOSE_PAREN,
     [CharClass.EOP]: StartState.ACCEPT_EOP,
     [CharClass.SLASH]: StartState.POSSIBLE_COMMENT,
     [CharClass.ASSIGN]: StartState.POSSIBLE_OPERATOR,
@@ -103,6 +109,8 @@ const START_TRANSITION_TABLE: Record<StartState, Partial<Record<CharClass, Start
   },
   [StartState.ACCEPT_OPEN_BLOCK]: {},
   [StartState.ACCEPT_CLOSE_BLOCK]: {},
+  [StartState.ACCEPT_OPEN_PAREN]: {},
+  [StartState.ACCEPT_CLOSE_PAREN]: {},
   [StartState.ACCEPT_EOP]: {},
   [StartState.POSSIBLE_COMMENT]: {},
   [StartState.POSSIBLE_OPERATOR]: {},
@@ -119,6 +127,8 @@ const COMMENT_TRANSITION_TABLE: Record<CommentState, Partial<Record<CharClass, C
     [CharClass.EOF]: CommentState.UNTERMINATED,
     [CharClass.OPEN_BLOCK]: CommentState.NOT_A_COMMENT,
     [CharClass.CLOSE_BLOCK]: CommentState.NOT_A_COMMENT,
+    [CharClass.OPEN_PAREN]: CommentState.NOT_A_COMMENT,
+    [CharClass.CLOSE_PAREN]: CommentState.NOT_A_COMMENT,
     [CharClass.EOP]: CommentState.NOT_A_COMMENT,
     [CharClass.SLASH]: CommentState.NOT_A_COMMENT,
     [CharClass.ASSIGN]: CommentState.NOT_A_COMMENT,
@@ -136,6 +146,8 @@ const COMMENT_TRANSITION_TABLE: Record<CommentState, Partial<Record<CharClass, C
     [CharClass.STAR]: CommentState.POSSIBLE_END,
     [CharClass.OPEN_BLOCK]: CommentState.IN_COMMENT,
     [CharClass.CLOSE_BLOCK]: CommentState.IN_COMMENT,
+    [CharClass.OPEN_PAREN]: CommentState.IN_COMMENT,
+    [CharClass.CLOSE_PAREN]: CommentState.IN_COMMENT,
     [CharClass.EOP]: CommentState.IN_COMMENT,
     [CharClass.SLASH]: CommentState.IN_COMMENT,
     [CharClass.ASSIGN]: CommentState.IN_COMMENT,
@@ -154,6 +166,8 @@ const COMMENT_TRANSITION_TABLE: Record<CommentState, Partial<Record<CharClass, C
     [CharClass.STAR]: CommentState.POSSIBLE_END,
     [CharClass.OPEN_BLOCK]: CommentState.IN_COMMENT,
     [CharClass.CLOSE_BLOCK]: CommentState.IN_COMMENT,
+    [CharClass.OPEN_PAREN]: CommentState.IN_COMMENT,
+    [CharClass.CLOSE_PAREN]: CommentState.IN_COMMENT,
     [CharClass.EOP]: CommentState.IN_COMMENT,
     [CharClass.ASSIGN]: CommentState.IN_COMMENT,
     [CharClass.BANG]: CommentState.IN_COMMENT,
@@ -179,6 +193,8 @@ const WORD_TRANSITION_TABLE: Record<WordState, Partial<Record<CharClass, WordSta
     [CharClass.LETTER]: WordState.IN_WORD,
     [CharClass.OPEN_BLOCK]: WordState.ACCEPT,
     [CharClass.CLOSE_BLOCK]: WordState.ACCEPT,
+    [CharClass.OPEN_PAREN]: WordState.ACCEPT,
+    [CharClass.CLOSE_PAREN]: WordState.ACCEPT,
     [CharClass.EOP]: WordState.ACCEPT,
     [CharClass.SLASH]: WordState.ACCEPT,
     [CharClass.STAR]: WordState.ACCEPT,
@@ -204,6 +220,8 @@ const DIGIT_TRANSITION_TABLE: Record<DigitState, Partial<Record<CharClass, Digit
     [CharClass.DIGIT]: DigitState.IN_DIGITS,
     [CharClass.OPEN_BLOCK]: DigitState.ACCEPT,
     [CharClass.CLOSE_BLOCK]: DigitState.ACCEPT,
+    [CharClass.OPEN_PAREN]: DigitState.ACCEPT,
+    [CharClass.CLOSE_PAREN]: DigitState.ACCEPT,
     [CharClass.EOP]: DigitState.ACCEPT,
     [CharClass.SLASH]: DigitState.ACCEPT,
     [CharClass.STAR]: DigitState.ACCEPT,
@@ -233,6 +251,8 @@ const STRING_TRANSITION_TABLE: Record<StringState, Partial<Record<CharClass, Str
     [CharClass.WHITESPACE]: StringState.UNTERMINATED,
     [CharClass.OPEN_BLOCK]: StringState.UNTERMINATED,
     [CharClass.CLOSE_BLOCK]: StringState.UNTERMINATED,
+    [CharClass.OPEN_PAREN]: StringState.UNTERMINATED,
+    [CharClass.CLOSE_PAREN]: StringState.UNTERMINATED,
     [CharClass.EOP]: StringState.UNTERMINATED,
     [CharClass.SLASH]: StringState.UNTERMINATED,
     [CharClass.STAR]: StringState.UNTERMINATED,
@@ -256,6 +276,8 @@ const OPERATOR_TRANSITION_TABLE: Record<OperatorState, Partial<Record<CharClass,
   [OperatorState.AFTER_ASSIGN]: {
     [CharClass.OPEN_BLOCK]: OperatorState.ACCEPT_ASSIGN,
     [CharClass.CLOSE_BLOCK]: OperatorState.ACCEPT_ASSIGN,
+    [CharClass.OPEN_PAREN]: OperatorState.ACCEPT_ASSIGN,
+    [CharClass.CLOSE_PAREN]: OperatorState.ACCEPT_ASSIGN,
     [CharClass.EOP]: OperatorState.ACCEPT_ASSIGN,
     [CharClass.SLASH]: OperatorState.ACCEPT_ASSIGN,
     [CharClass.STAR]: OperatorState.ACCEPT_ASSIGN,
@@ -272,6 +294,8 @@ const OPERATOR_TRANSITION_TABLE: Record<OperatorState, Partial<Record<CharClass,
     [CharClass.ASSIGN]: OperatorState.ACCEPT_INEQUALITY,
     [CharClass.OPEN_BLOCK]: OperatorState.INVALID,
     [CharClass.CLOSE_BLOCK]: OperatorState.INVALID,
+    [CharClass.OPEN_PAREN]: OperatorState.INVALID,
+    [CharClass.CLOSE_PAREN]: OperatorState.INVALID,
     [CharClass.EOP]: OperatorState.INVALID,
     [CharClass.SLASH]: OperatorState.INVALID,
     [CharClass.STAR]: OperatorState.INVALID,
@@ -294,6 +318,8 @@ const OPERATOR_TRANSITION_TABLE: Record<OperatorState, Partial<Record<CharClass,
 const ACCEPTING_TOKENS: Partial<Record<StartState, TokenType>> = {
   [StartState.ACCEPT_OPEN_BLOCK]: TokenType.OPEN_BLOCK,
   [StartState.ACCEPT_CLOSE_BLOCK]: TokenType.CLOSE_BLOCK,
+  [StartState.ACCEPT_OPEN_PAREN]: TokenType.OPEN_PAREN,
+  [StartState.ACCEPT_CLOSE_PAREN]: TokenType.CLOSE_PAREN,
   [StartState.ACCEPT_EOP]: TokenType.EOP
 };
 
@@ -513,7 +539,7 @@ export class Lexer {
       const syntheticEopPosition = this.currentPosition();
       const syntheticEop = this.createToken(TokenType.EOP, "$", syntheticEopPosition);
 
-      // Step 7 requires warning about a missing '$' but still letting the program finish.
+      // Warning about a missing '$' but still let the program finish
       this.warn(
         syntheticEopPosition.line,
         syntheticEopPosition.column,
@@ -550,6 +576,12 @@ export class Lexer {
     }
     if (char === "}") {
       return CharClass.CLOSE_BLOCK;
+    }
+    if (char === "(") {
+      return CharClass.OPEN_PAREN;
+    }
+    if (char === ")") {
+      return CharClass.CLOSE_PAREN;
     }
     if (char === "$") {
       return CharClass.EOP;
