@@ -1,0 +1,160 @@
+DEBUG: Running in verbose mode
+
+LEXER: Lexing program 1...
+LEXER: "{" --> [LBRACE]
+LEXER: "}" --> [RBRACE]
+LEXER: "$" --> [EOP]
+LEXER: Lex completed successfully
+
+PARSER: Parsing program 1...
+PARSER: parse()
+PARSER: parseProgram()
+PARSER: parseBlock()
+PARSER: parseStatementList()
+PARSER: Parse completed successfully
+
+CST for program 1...
+<Program>
+-<Block>
+--[{]
+--<Statement List>
+--[}]
+-[$]
+
+LEXER: Lexing program 2...
+LEXER: "{" --> [LBRACE]
+LEXER: "{" --> [LBRACE]
+LEXER: "{" --> [LBRACE]
+LEXER: "{" --> [LBRACE]
+LEXER: "{" --> [LBRACE]
+LEXER: "{" --> [LBRACE]
+LEXER: "{" --> [LBRACE]
+LEXER: "}" --> [RBRACE]
+LEXER: "}" --> [RBRACE]
+LEXER: "}" --> [RBRACE]
+LEXER: "}" --> [RBRACE]
+LEXER: "}" --> [RBRACE]
+LEXER: "}" --> [RBRACE]
+LEXER: "$" --> [EOP]
+LEXER: Lex completed successfully
+
+PARSER: Parsing program 2...
+PARSER: parse()
+PARSER: parseProgram()
+PARSER: parseBlock()
+PARSER: parseStatementList()
+PARSER: parseStatement()
+PARSER: parseBlock()
+PARSER: parseStatementList()
+PARSER: parseStatement()
+PARSER: parseBlock()
+PARSER: parseStatementList()
+PARSER: parseStatement()
+PARSER: parseBlock()
+PARSER: parseStatementList()
+PARSER: parseStatement()
+PARSER: parseBlock()
+PARSER: parseStatementList()
+PARSER: parseStatement()
+PARSER: parseBlock()
+PARSER: parseStatementList()
+PARSER: parseStatementList()
+PARSER: parseStatementList()
+PARSER: parseStatementList()
+PARSER: parseStatementList()
+PARSER: parseStatementList()
+PARSER: Parse completed successfully
+
+CST for program 2...
+<Program>
+-<Block>
+--[{]
+--<Statement List>
+---<Statement>
+----<Block>
+-----[{]
+-----<Statement List>
+-----<Statement>
+------<Block>
+-------[{]
+--------<Statement List>
+--------<Statement>
+---------<Block>
+----------[{]
+-----------<Statement List>
+------------<Statement>
+-------------<Block>
+--------------[{]
+---------------<Statement List>
+----------------<Statement>
+-----------------<Block>
+------------------[{]
+-------------------<Statement List>
+------------------[}]
+-----------------[}]
+------------[}]
+----------[}]
+--------[}]
+-----[}]
+--[}]
+-[$]
+
+LEXER: Lexing program 3...
+LEXER: "{" --> [LBRACE]
+LEXER: "{" --> [LBRACE]
+LEXER: "{" --> [LBRACE]
+LEXER: "{" --> [LBRACE]
+LEXER: "{" --> [LBRACE]
+LEXER: "{" --> [LBRACE]
+LEXER: "{" --> [LBRACE]
+LEXER: "}" --> [RBRACE]
+LEXER: "}" --> [RBRACE]
+LEXER: "}" --> [RBRACE]
+LEXER: "}" --> [RBRACE]
+LEXER: "}" --> [RBRACE]
+LEXER: "}" --> [RBRACE]
+LEXER: "}" --> [RBRACE]
+LEXER: "$" --> [EOL]
+LEXER: Lex completed successfully
+
+PARSER: Parsing program 3...
+PARSER: parse()
+PARSER: parseProgram()
+PARSER: parseBlock()
+PARSER: parseStatementList()
+PARSER: parseStatement()
+PARSER: parseBlock()
+PARSER: parseStatementList()
+PARSER: parseStatement()
+PARSER: parseBlock()
+PARSER: parseStatementList()
+PARSER: parseStatement()
+PARSER: parseBlock()
+PARSER: parseStatementList()
+PARSER: parseStatement()
+PARSER: parseBlock()
+PARSER: parseStatementList()
+PARSER: parseStatement()
+PARSER: parseBlock()
+PARSER: parseStatementList()
+PARSER: parseStatementList()
+PARSER: parseStatementList()
+PARSER: parseStatementList()
+PARSER: parseStatementList()
+PARSER: parseStatementList()
+PARSER: ERROR: Expected [EOL] got [RBRACE] with value '}' on line 0
+PARSER: Parse failed with 1 error
+
+CST for program 3: Skipped due to PARSER error(s).
+
+LEXER: Lexing program 4...
+LEXER: "{" --> [LBRACE]
+LEXER: "int" --> [TYPE]
+LEXER: ERROR: Unrecognized Token: @
+LEXER: "}" --> [RBRACE]
+LEXER: "$" --> [EOL]
+LEXER: Lex completed with 1 error
+
+PARSER: Skipped due to LEXER error(s)
+
+CST for program 4: Skipped due to LEXER error(s).
