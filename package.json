@@ -5,9 +5,10 @@
   "description": "Lexer for a TypeScript-like language compiler",
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "start": "ts-node src/cli.ts",
+    "start": "ts-node src/lexer/cli.ts",
+    "start:dist": "node dist/lexer/cli.js",
     "check": "tsc --noEmit",
-    "test": "npm run build && node tests/run-lexer-tests.js"
+    "test": "npm run build && node test/lexer/run-lexer-tests.js"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
