@@ -3,10 +3,10 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { execFileSync } = require("node:child_process");
 
-const { Lexer } = require("../../dist/lexer/lexer");
-const { TokenType } = require("../../dist/lexer/tokens");
+const { Lexer } = require("../dist/lexer/lexer");
+const { TokenType } = require("../dist/lexer/tokens");
 
-const repoRoot = path.resolve(__dirname, "../..");
+const repoRoot = path.resolve(__dirname, "..");
 
 function readFixture(relativePath) {
   return fs.readFileSync(path.join(repoRoot, relativePath), "utf8");
@@ -136,7 +136,7 @@ const tests = [
   {
     name: "warns when the final end-of-program marker is missing",
     run() {
-      const source = readFixture("test/lexer/testStep9MissingEop.txt");
+      const source = readFixture("test/files/testStep9MissingEop.txt");
       const { tokens, output } = runLexer(source);
 
       assert.strictEqual(tokens[tokens.length - 1].type, TokenType.EOP);
@@ -148,7 +148,7 @@ const tests = [
   {
     name: "warns about unterminated comments",
     run() {
-      const source = readFixture("test/lexer/testStep9UnterminatedComment.txt");
+      const source = readFixture("test/files/testStep9UnterminatedComment.txt");
       const { output } = runLexer(source);
 
       assertOutputContains(output, "Unterminated comment block");
@@ -185,7 +185,7 @@ const tests = [
   {
     name: "rejects slash and star outside valid grammar contexts",
     run() {
-      const errorLines = readFixture("test/lexer/testStep9Errors.txt").split(/\r?\n/);
+      const errorLines = readFixture("test/files/testStep9Errors.txt").split(/\r?\n/);
       const slashRun = runLexer(errorLines[0]);
       const starRun = runLexer(errorLines[1]);
 
@@ -196,7 +196,7 @@ const tests = [
   {
     name: "supports quiet CLI mode without debug traces",
     run() {
-      const quietOutput = runCli(["--quiet", "test/lexer/testStep9Valid.txt"]);
+      const quietOutput = runCli(["--quiet", "test/files/testStep9Valid.txt"]);
 
       assert.match(quietOutput, /INFO  Lexer - Lexing program 1/);
       assert.doesNotMatch(quietOutput, /DEBUG Lexer -/);
@@ -205,7 +205,7 @@ const tests = [
   {
     name: "keeps verbose CLI mode as the default",
     run() {
-      const verboseOutput = runCli(["test/lexer/testStep9Valid.txt"]);
+      const verboseOutput = runCli(["test/files/testStep9Valid.txt"]);
 
       assert.match(verboseOutput, /DEBUG Lexer -/);
       assert.match(verboseOutput, /OPEN_PAREN/);

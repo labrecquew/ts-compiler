@@ -1,6 +1,6 @@
 # Lexer Test Notes
 
-Automated lexer test suite plus extra source fixtures in `test-files/`.
+Automated lexer test suite plus shared input files in [`files/`](files/).
 
 ## How To Run
 
@@ -8,7 +8,7 @@ Automated lexer test suite plus extra source fixtures in `test-files/`.
 npm test
 ```
 
-This command rebuilds the project and runs `tests/run-lexer-tests.js`.
+This command rebuilds the project and runs [`run-lexer-tests.js`](run-lexer-tests.js).
 
 ## Coverage Summary
 
@@ -25,12 +25,14 @@ The suite currently checks:
 - Warning cases: missing final `$`, unterminated comment
 - CLI verbosity behavior for default debug mode and `--quiet`
 
-## Added Fixture Files
+## Input files
 
-- `test-files/testStep9Valid.txt`
-- `test-files/testStep9Errors.txt`
-- `test-files/testStep9MissingEop.txt`
-- `test-files/testStep9UnterminatedComment.txt`
+- [`files/testStep9Valid.txt`](files/testStep9Valid.txt)
+- [`files/testStep9Errors.txt`](files/testStep9Errors.txt)
+- [`files/testStep9MissingEop.txt`](files/testStep9MissingEop.txt)
+- [`files/testStep9UnterminatedComment.txt`](files/testStep9UnterminatedComment.txt)
+
+Additional milestone-style samples: [`files/test.txt`](files/test.txt), `testStep4.txt` … `testStep7.txt`.
 
 These are intended as manual spot-check files in the same spirit as the earlier step files, but the redundant cases were trimmed so they now focus on scenarios not already covered as cleanly by the earlier milestone files.
 
@@ -60,5 +62,5 @@ Passed 13/13 lexer tests.
 ## Notes
 
 - The earlier step files are still useful as small manual sanity checks.
-- The Step 9 fixture files were reduced to keep only the less redundant regression-oriented manual cases.
-- The automated suite focuses on lexer behavior only; it does not attempt parser validation.
+- The Step 9 files under `files/` were reduced to keep only the less redundant regression-oriented manual cases.
+- The automated suite focuses on lexer behavior only; it does not attempt parser validation. Add parser tests under `test/` when ready (e.g. `run-parser-tests.js`).

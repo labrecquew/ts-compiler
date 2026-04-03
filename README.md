@@ -21,9 +21,9 @@ npm start -- [--quiet | --debug] <filePath>
 Examples:
 
 ```bash
-npm start -- test-files/testStep6.txt
-npm start -- --quiet test-files/testStep6.txt
-npm start -- --debug test-files/testStep6.txt
+npm start -- test/files/testStep6.txt
+npm start -- --quiet test/files/testStep6.txt
+npm start -- --debug test/files/testStep6.txt
 ```
 
 ### `npm test`
@@ -37,7 +37,7 @@ npm test
 This does two things:
 
 1. Builds the TypeScript project into `dist/`
-2. Runs the automated lexer regression suite in `tests/run-lexer-tests.js`
+2. Runs the automated lexer regression suite in `test/run-lexer-tests.js`
 
 So the difference is:
 
@@ -46,10 +46,10 @@ So the difference is:
 
 ## Manual Test Files
 
-The `test-files/` folder contains sample programs used for step-by-step development and manual testing.
+The `test/files/` folder contains sample programs used for step-by-step development and manual testing.
 
 - `testStep4.txt` through `testStep7.txt` and `test.txt` are milestone-oriented manual inputs
-- `testStep9Valid.txt`, `testStep9Errors.txt`, `testStep9MissingEop.txt`, and `testStep9UnterminatedComment.txt` are broader regression-oriented fixtures
+- `testStep9Valid.txt`, `testStep9Errors.txt`, `testStep9MissingEop.txt`, and `testStep9UnterminatedComment.txt` are broader regression-oriented samples
 
 ## Current Features
 

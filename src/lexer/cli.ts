@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { Parser } from "../parser/parser";
 import { Lexer } from "./lexer";
 
 const CLI_USAGE = "Usage: npm start -- [--quiet|--debug] <filePath>";
@@ -52,8 +53,22 @@ function main(): void {
   const source = readInput(options.filePath);
   const lexer = new Lexer(source, { debug: options.debug });
 
-  // Run the lexer with verbose token traces on by default unless quiet mode is requested.
-  lexer.lex();
+  for (;;) {
+    const segment = lexer.lexNextProgram();
+    if (segment === null) {
+      break;
+    }
+
+    if (segment.lexErrorCount > 0) {
+      console.log(
+        `INFO  Parser - Skipping parse for program ${segment.programNumber} because lexing reported ${segment.lexErrorCount} error(s).`
+      );
+      continue;
+    }
+
+    const parser = new Parser(segment.tokens, segment.programNumber, { debug: options.debug });
+    parser.run();
+  }
 }
 
 main();

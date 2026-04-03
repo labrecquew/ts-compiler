@@ -358,55 +358,79 @@ interface OperatorScanOutcome {
   errorLexeme: string;
 }
 
+/** One program's tokens through `EOP`, with per-program stats for lex-then-parse drivers. */
+export interface LexProgramResult {
+  tokens: Token[];
+  lexErrorCount: number;
+  programNumber: number;
+}
+
 export class Lexer {
   private readonly source: string;
   private readonly debug: boolean;
   private index = 0;
   private line = 1;
   private column = 1;
+  private programSequence = 0;
 
   constructor(source: string, options: LexerOptions = {}) {
     this.source = source;
     this.debug = options.debug ?? true;
   }
 
-  // Main lexing function, the actual lexing happens here using the helper functions below
-  public lex(): Token[] {
-    const tokens: Token[] = [];
-    let currentProgram = 0;
-    let inProgram = false;
-    // Track per-program failures so the summary printed at '$' is accurate.
-    let currentProgramErrors = 0;
+  /**
+   * Lex one program: first significant character through `EOP` (inclusive), after skipping
+   * inter-program whitespace. Returns `null` when there is no next program.
+   */
+  public lexNextProgram(): LexProgramResult | null {
+    while (!this.isAtEnd() && this.isIgnoredOutsideString(this.classify(this.peek()))) {
+      this.consumeChar();
+    }
 
-    while (!this.isAtEnd()) {
-      // A non-whitespace char starts a new program segment until we hit EOP.
-      if (!inProgram && !this.isIgnoredOutsideString(this.classify(this.peek()))) {
-        currentProgram += 1;
-        inProgram = true;
-        currentProgramErrors = 0;
-        console.log(`INFO  Lexer - Lexing program ${currentProgram}...`);
+    if (this.isAtEnd()) {
+      return null;
+    }
+
+    this.programSequence += 1;
+    const programNumber = this.programSequence;
+    let currentProgramErrors = 0;
+    const tokens: Token[] = [];
+
+    console.log(`INFO  Lexer - Lexing program ${programNumber}...`);
+
+    while (true) {
+      if (this.isAtEnd()) {
+        const syntheticEopPosition = this.currentPosition();
+        const syntheticEop = this.createToken(TokenType.EOP, "$", syntheticEopPosition);
+
+        this.warn(
+          syntheticEopPosition.line,
+          syntheticEopPosition.column,
+          "Missing end-of-program marker '$'. The lexer inserted a synthetic '$' at end of input so this program can be finalized."
+        );
+        tokens.push(syntheticEop);
+        this.debugToken(TokenType.EOP, syntheticEop.lexeme, syntheticEopPosition.line, syntheticEopPosition.column);
+        this.finishProgram(currentProgramErrors);
+        return { tokens, lexErrorCount: currentProgramErrors, programNumber };
       }
 
       const state = this.nextStartState();
       const position = this.currentPosition();
       const acceptingToken = ACCEPTING_TOKENS[state];
 
-      // Accepting states emit a token from the current character.
       if (acceptingToken !== undefined) {
         const lexeme = this.consumeChar();
         tokens.push(this.createToken(acceptingToken, lexeme, position));
         this.debugToken(acceptingToken, lexeme, position.line, position.column);
 
-        // EOP marks the end of one program in a multi-program input stream.
         if (acceptingToken === TokenType.EOP) {
           this.finishProgram(currentProgramErrors);
-          inProgram = false;
+          return { tokens, lexErrorCount: currentProgramErrors, programNumber };
         }
 
         continue;
       }
 
-      // Slash can start a block comment; comment DFA handles the rest.
       if (state === StartState.POSSIBLE_COMMENT) {
         const commentStart = this.currentPosition();
         const commentOutcome = this.consumeCommentByDfa();
@@ -431,7 +455,6 @@ export class Lexer {
         continue;
       }
 
-      // Operator DFA handles one- and two-character operators with maximal munch.
       if (state === StartState.POSSIBLE_OPERATOR) {
         const operatorOutcome = this.consumeOperatorByDfa(position);
 
@@ -455,7 +478,6 @@ export class Lexer {
         continue;
       }
 
-      // Lowercase words are scanned by a separate DFA, then resolved as keyword or ID.
       if (state === StartState.POSSIBLE_WORD) {
         const lexeme = this.consumeWordByDfa();
         const tokenType = this.resolveWordTokenType(lexeme);
@@ -475,7 +497,6 @@ export class Lexer {
         continue;
       }
 
-      // Digit DFA groups adjacent digits, then emits one DIGIT token per character.
       if (state === StartState.POSSIBLE_DIGITS) {
         const digitTokens = this.consumeDigitsByDfa(position);
 
@@ -492,7 +513,6 @@ export class Lexer {
         continue;
       }
 
-      // String DFA emits opening quote, char/space content, and closing quote tokens.
       if (state === StartState.POSSIBLE_STRING) {
         const stringOutcome = this.consumeStringByDfa(position);
 
@@ -534,23 +554,19 @@ export class Lexer {
         `Unrecognized Token: ${badLexeme}. This character is not part of the grammar at this position. Remove it or replace it with a valid token.`
       );
     }
+  }
 
-    if (inProgram) {
-      const syntheticEopPosition = this.currentPosition();
-      const syntheticEop = this.createToken(TokenType.EOP, "$", syntheticEopPosition);
+  // Lex the full source; equivalent to concatenating every `lexNextProgram` segment.
+  public lex(): Token[] {
+    const tokens: Token[] = [];
 
-      // Warning about a missing '$' but still let the program finish
-      this.warn(
-        syntheticEopPosition.line,
-        syntheticEopPosition.column,
-        "Missing end-of-program marker '$'. The lexer inserted a synthetic '$' at end of input so this program can be finalized."
-      );
-      tokens.push(syntheticEop);
-      this.debugToken(TokenType.EOP, syntheticEop.lexeme, syntheticEopPosition.line, syntheticEopPosition.column);
-      this.finishProgram(currentProgramErrors);
+    for (;;) {
+      const segment = this.lexNextProgram();
+      if (segment === null) {
+        return tokens;
+      }
+      tokens.push(...segment.tokens);
     }
-
-    return tokens;
   }
 
   private isAtEnd(): boolean {
