@@ -1,64 +1,70 @@
-# TypeScript Compiler Lexer
+# TypeScript Compiler (Lexer + Parser)
 
 Course project for CMPT 432 at Marist University.
 
-This repository contains a DFA table-driven lexer for a small compiler language. The lexer reads source code, validates it against the language grammar, and prints token/debug information, warnings, and lexer errors.
+This repository implements the **front end** of a small compiler: a table-driven **lexer** and a **recursive-descent parser** that consume source programs (several per file, separated by `$`), emit diagnostics, and print a **concrete syntax tree (CST)** when parsing succeeds. The language is defined in `[cursor-only/grammar.md` .
 
 ## Commands
 
 ### `npm start`
 
-Use `npm start` to lex and parse source programs (full front-end for each program segment ending with `$`).
+Lex and parse each program in the file (from the first significant character through the end-of-program marker `$`).
 
 ```bash
 npm start -- [--quiet | --debug] <filePath>
 ```
 
 - A `filePath` is required.
-- `--debug` keeps token tracing on. This is the default behavior that will run if --quiet or --debug is not specified.
-- `--quiet` suppresses per-token `DEBUG` lines, but still shows `INFO`, warnings, and errors.
+- Per-token traces are on by default. Use `--quiet` to hide `DEBUG Lexer` / `DEBUG Parser` lines while keeping `INFO`, warnings, errors, and hints.
 
 Examples:
 
 ```bash
-npm start -- test/files/testStep6.txt
-npm start -- --quiet test/files/testStep6.txt
-npm start -- --debug test/files/testStep6.txt
+npm start -- test/files/parser-valid-mixed.txt
+npm start -- --quiet test/files/parser-multi-program.txt
 ```
 
 ### `npm test`
 
-Use `npm test` to run the lexer and parser regression suites.
+Run the **lexer** suite (`test/run-lexer-tests.js`) and **parser** suite (`test/run-parser-tests.js`) after compiling TypeScript into `dist/`.
 
 ```bash
 npm test
 ```
 
-This:
+- `npm start` is for interactive runs and inspecting CSTs on sample files.
+- `npm test` is the regression gate for both phases.
 
-1. Builds the TypeScript project into `dist/`
-2. Runs `test/run-lexer-tests.js`
-3. Runs `test/run-parser-tests.js`
+More detail: `[test/lex-test.md](test/lex-test.md)` (lexer), `[test/parse-test.md](test/parse-test.md)` (parser).
 
-So the difference is:
+## Manual test files
 
-- `npm start` lexes and parses each program in the given file
-- `npm test` checks lexer and parser behavior against the bundled tests
+Under `[test/files/](test/files/)`:
 
-## Manual Test Files
+- `**parser-*.txt**` — curated samples for the **current grammar** (valid programs, multi-program layouts, and a few intentional parse errors). See the list in `[test/parse-test.md](test/parse-test.md)`.
+- `**testStep4.txt`–`testStep7.txt`**, `**test.txt`** — milestone-style inputs from earlier development; not all lines match today’s grammar (use `parser-*.txt` for predictable parser outcomes).
+- `**testStep9*.txt**` — lexer-focused regression-style samples (valid input, errors, missing `$`, unterminated comment).
 
-The `test/files/` folder contains sample programs used for step-by-step development and manual testing.
+## Current features
 
-- `testStep4.txt` through `testStep7.txt` and `test.txt` are milestone-oriented manual inputs
-- `testStep9Valid.txt`, `testStep9Errors.txt`, `testStep9MissingEop.txt`, and `testStep9UnterminatedComment.txt` are broader regression-oriented samples
+**Lexer**
 
-## Current Features
-
-- Table-driven DFA lexer structure
-- Multi-program input separated by `$`
+- DFA-driven scanning (keywords, types, booleans, operators, parentheses, braces, strings, per-digit digits, single-letter identifiers)
+- Block comments `/* … */` with unterminated-comment warnings
+- Multi-program sources (each segment ends at `$`)
+- Detailed errors and optional warnings (e.g. missing final `$`)
 - Verbose and quiet CLI modes
-- Comments with unterminated-comment warnings
-- Strings, digits, identifiers, keywords, operators, and delimiters
-- Detailed lexer error reporting
-- Recursive-descent parser with CST output (Step 2: programs and nested blocks; more statements in later steps)
-- Automated lexer and parser regression tests
+
+**Parser**
+
+- Recursive descent aligned with `[cursor-only/grammar.md](cursor-only/grammar.md)`: programs, blocks, statement lists, `print`, declarations, assignments, `while` / `if` (with `BooleanExpr` conditions), and expressions (`IntExpr`, strings, parenthesized comparisons, identifiers)
+- **CST** is built during parsing with the `[Tree](src/parser/tree.ts)` API (`addNode`, `endChildren`; `"branch"` vs `"leaf"`). Pretty-printing matches the prior hyphen-depth style (`printProgramCst`).
+- CST output only when there are **no parse errors**
+- Errors, warnings, and hints (see `[cursor-only/parseRequirements.md](cursor-only/parseRequirements.md)`); parse failures skip CST output for that program
+- Skips parsing when the lexer reported errors for the same program segment
+- Default verbose `DEBUG Parser` traces (toggle with CLI flags above)
+
+**Tests**
+
+- Automated lexer and parser regression tests via `npm test`
+

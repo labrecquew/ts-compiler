@@ -36,7 +36,8 @@ You have a PhD in computer science and are an expert in compilers and TypeScript
 - Implement one parser function per major grammar production
 - Build the **CST during parsing**, not as a separate reconstruction pass
 - Preserve terminals in the CST as terminals and non-terminals as branch nodes
-- Keep CST construction helpers readable and consistent
+- Use the course **Tree** API (`addNode(name, "branch" | "leaf")`, `endChildren()`) in `src/parser/tree.ts` (Labouseur-style tree builder); keep pretty-printing of that tree separate from parse control (`printProgramCst`, `cstBodyLines`)
+- Keep CST construction readable and consistent
 - Keep diagnostics separate from the core parse-control flow where practical
 - Support **multiple programs per run**, matching lexer behavior
 - Prevent Semantic Analysis from running when parse errors occur
@@ -234,7 +235,8 @@ Execute **one step at a time**. Stop after each step for user review and commit.
 | File                          | Purpose                                                          |
 | ----------------------------- | ---------------------------------------------------------------- |
 | `grammar.md`                  | Authoritative grammar; parser productions must match it exactly  |
-| `parserRequirements.md`       | Parser assignment requirements and diagnostic expectations       |
+| `cursor-only/parseRequirements.md` | Parser assignment requirements and diagnostic expectations  |
+| `src/parser/tree.ts`          | `Tree` class: CST branches/leaves via `addNode` / `endChildren`; output lines |
 | `parseExamples.txt`           | Example parser traces, failure cases, and CST formatting style   |
 | `output1.txt` - `output4.txt` | Existing lexer output style reference for formatting consistency |
 | `parse-test.md`               | Informal testing write-up (you create/update)                    |

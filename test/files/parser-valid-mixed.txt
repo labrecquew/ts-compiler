@@ -1,0 +1,1 @@
+{int x x = 1 string y y = "hi" print(x) print(y) print(true) print((1==1)) if false {print(0)} while true {print(1+2)}}$

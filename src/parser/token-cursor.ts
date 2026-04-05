@@ -1,4 +1,4 @@
-import type { Token } from "../lexer/tokens";
+import type { SourcePosition, Token } from "../lexer/tokens";
 
 /**
  * Sequential access over one program's token list (including trailing EOP).
@@ -8,6 +8,21 @@ export class TokenCursor {
   private index = 0;
 
   constructor(private readonly tokens: readonly Token[]) {}
+
+  /**
+   * Best position for diagnostics when the next token is missing (EOF): prefer current peek, else last consumed token, else (1,1).
+   */
+  errorAnchor(): SourcePosition {
+    const next = this.tokens[this.index];
+    if (next !== undefined) {
+      return next.position;
+    }
+    if (this.index > 0) {
+      const prev = this.tokens[this.index - 1]!;
+      return prev.position;
+    }
+    return { line: 1, column: 1, index: 0 };
+  }
 
   peek(): Token | undefined {
     return this.tokens[this.index];

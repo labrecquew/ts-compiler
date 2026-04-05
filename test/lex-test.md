@@ -8,7 +8,7 @@ Automated lexer test suite plus shared input files in [`files/`](files/).
 npm test
 ```
 
-This command rebuilds the project, runs [`run-lexer-tests.js`](run-lexer-tests.js), then [`run-parser-tests.js`](run-parser-tests.js).
+This command rebuilds the project, runs [`run-lexer-tests.js`](run-lexer-tests.js), then [`run-parser-tests.js`](run-parser-tests.js). Parser-focused notes and coverage live in [`parse-test.md`](parse-test.md).
 
 ## Coverage Summary
 
@@ -43,25 +43,13 @@ Latest run:
 ```text
 npm test
 
-PASS lexes simple block delimiters
-PASS ignores block comments
-PASS covers keywords, booleans, parentheses, and operators
-PASS lexes strings and per-digit integer tokens
-PASS reports invalid characters as lexer errors
-PASS warns when the final end-of-program marker is missing
-PASS warns about unterminated comments
-PASS reports unterminated strings
-PASS rejects a standalone bang operator
-PASS rejects multi-letter identifiers
-PASS rejects slash and star outside valid grammar contexts
-PASS supports quiet CLI mode without debug traces
-PASS keeps verbose CLI mode as the default
+...
+
 Passed 13/13 lexer tests.
-Passed 7/7 parser tests.
 ```
 
 ## Notes
 
 - The earlier step files are still useful as small manual sanity checks.
 - The Step 9 files under `files/` were reduced to keep only the less redundant regression-oriented manual cases.
-- Parser regression tests live in [`run-parser-tests.js`](run-parser-tests.js) (Step 2: `Program`, `Block`, `StatementList`, nested blocks).
+- Parser regression tests live in [`run-parser-tests.js`](run-parser-tests.js); see [`parse-test.md`](parse-test.md) for full grammar-aligned coverage (statements, expressions, control flow, diagnostics, multi-program behavior).
