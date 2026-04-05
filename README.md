@@ -8,7 +8,7 @@ This repository contains a DFA table-driven lexer for a small compiler language.
 
 ### `npm start`
 
-Use `npm start` to run the lexer on actual source input.
+Use `npm start` to lex and parse source programs (full front-end for each program segment ending with `$`).
 
 ```bash
 npm start -- [--quiet | --debug] <filePath>
@@ -28,21 +28,22 @@ npm start -- --debug test/files/testStep6.txt
 
 ### `npm test`
 
-Use `npm test` to verify the lexer implementation itself.
+Use `npm test` to run the lexer and parser regression suites.
 
 ```bash
 npm test
 ```
 
-This does two things:
+This:
 
 1. Builds the TypeScript project into `dist/`
-2. Runs the automated lexer regression suite in `test/run-lexer-tests.js`
+2. Runs `test/run-lexer-tests.js`
+3. Runs `test/run-parser-tests.js`
 
 So the difference is:
 
-- `npm start` is for lexing input programs
-- `npm test` is for checking whether the lexer still behaves correctly
+- `npm start` lexes and parses each program in the given file
+- `npm test` checks lexer and parser behavior against the bundled tests
 
 ## Manual Test Files
 
@@ -59,4 +60,5 @@ The `test/files/` folder contains sample programs used for step-by-step developm
 - Comments with unterminated-comment warnings
 - Strings, digits, identifiers, keywords, operators, and delimiters
 - Detailed lexer error reporting
-- Automated regression tests
+- Recursive-descent parser with CST output (Step 2: programs and nested blocks; more statements in later steps)
+- Automated lexer and parser regression tests

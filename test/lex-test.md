@@ -8,7 +8,7 @@ Automated lexer test suite plus shared input files in [`files/`](files/).
 npm test
 ```
 
-This command rebuilds the project and runs [`run-lexer-tests.js`](run-lexer-tests.js).
+This command rebuilds the project, runs [`run-lexer-tests.js`](run-lexer-tests.js), then [`run-parser-tests.js`](run-parser-tests.js).
 
 ## Coverage Summary
 
@@ -32,7 +32,7 @@ The suite currently checks:
 - [`files/testStep9MissingEop.txt`](files/testStep9MissingEop.txt)
 - [`files/testStep9UnterminatedComment.txt`](files/testStep9UnterminatedComment.txt)
 
-Additional milestone-style samples: [`files/test.txt`](files/test.txt), `testStep4.txt` … `testStep7.txt`.
+Additional milestone-style samples: [`files/test.txt`](files/test.txt), `testStep4.txt` … `testStep7.txt`. **`test.txt`** mirrors [parseExamples.txt](../../cursor-only/parseExamples.txt): program 2 is seven nested empty blocks; program 3 has **one extra `}`** before `$` so the parser reports failure (no CST) like program 3 in the examples.
 
 These are intended as manual spot-check files in the same spirit as the earlier step files, but the redundant cases were trimmed so they now focus on scenarios not already covered as cleanly by the earlier milestone files.
 
@@ -57,10 +57,11 @@ PASS rejects slash and star outside valid grammar contexts
 PASS supports quiet CLI mode without debug traces
 PASS keeps verbose CLI mode as the default
 Passed 13/13 lexer tests.
+Passed 7/7 parser tests.
 ```
 
 ## Notes
 
 - The earlier step files are still useful as small manual sanity checks.
 - The Step 9 files under `files/` were reduced to keep only the less redundant regression-oriented manual cases.
-- The automated suite focuses on lexer behavior only; it does not attempt parser validation. Add parser tests under `test/` when ready (e.g. `run-parser-tests.js`).
+- Parser regression tests live in [`run-parser-tests.js`](run-parser-tests.js) (Step 2: `Program`, `Block`, `StatementList`, nested blocks).

@@ -38,8 +38,10 @@ function describeGot(token: Token | undefined): string {
 }
 
 /**
- * Recursive-descent parser: one method per major grammar production (skeleton + blocks through Step 1).
- * Diagnostics are recorded separately; CST is only printed when there are zero parse errors.
+ * Recursive-descent parser aligned with grammar.md:
+ * Program, Block, StatementList (epsilon and recursion), and Statement → Block for Step 2.
+ * Other statement kinds are handled in later steps. Diagnostics are separate from parse control;
+ * CST is only printed when there are zero parse errors.
  */
 export class Parser {
   private readonly cursor: TokenCursor;
@@ -61,7 +63,8 @@ export class Parser {
     this.log.debug("parse()");
     const root = this.parseProgram();
 
-    if (!this.cursor.isAtEnd()) {
+    const errorsBeforeExtraneous = this.diagnostics.filter((d) => d.severity === DiagnosticSeverity.Error).length;
+    if (errorsBeforeExtraneous === 0 && !this.cursor.isAtEnd()) {
       const t = this.cursor.peek()!;
       this.reportError(
         t.position.line,
@@ -74,6 +77,7 @@ export class Parser {
     const errors = this.diagnostics.filter((d) => d.severity === DiagnosticSeverity.Error);
     if (errors.length > 0) {
       this.log.parseFailed(errors.length);
+      console.log(`CST for program ${this.programNumber}: Skipped due to PARSER error(s).`);
       return;
     }
 
@@ -147,7 +151,7 @@ export class Parser {
     return nonTerminal("Statement List", [stmt, rest]);
   }
 
-  // --- Statement dispatch (skeleton: full statement kinds in Steps 3–4) ---
+  // --- Statement dispatch (Step 2: Block; Steps 3–4: print, assign, decl, while, if) ---
 
   private parseStatement(): CstNonTerminal {
     this.log.debug("parseStatement()");
@@ -186,7 +190,7 @@ export class Parser {
     return nonTerminal("Statement", []);
   }
 
-  /** Grammar productions not yet implemented (Step 1); kept as explicit stubs for the dispatch shape. */
+  /** Grammar productions not yet implemented; explicit stubs preserve the dispatch shape for later steps. */
   private parseStatementNotImplemented(t: Token): CstNonTerminal {
     this.log.debug(
       t.type === TokenType.PRINT
@@ -202,8 +206,8 @@ export class Parser {
     this.reportError(
       t.position.line,
       t.position.column,
-      `Parser Step 1 scaffold: ${describeGot(t)} is not parsed yet (PrintStatement, VarDecl, AssignmentStatement, WhileStatement, IfStatement are implemented in later steps). ` +
-        "Use only nested blocks `{ ... }` in this step, or continue the guided implementation."
+      `Parser Step 2 scope: ${describeGot(t)} is not parsed yet (PrintStatement, VarDecl, AssignmentStatement, WhileStatement, and IfStatement come in Steps 3–4). ` +
+        "Until then, use nested `{ ... }` blocks for statements."
     );
     this.cursor.consume();
     return nonTerminal("Statement", []);
