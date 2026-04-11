@@ -1,0 +1,182 @@
+Input:
+{
+  int a
+  {
+    boolean b
+    {
+      string c
+      {
+        a = 5
+        b = false
+        c = "inta"
+      }
+      print(c)
+    }
+    print(b)
+  }
+  print(a)
+}$
+
+Output:
+
+LEX: BEGINNING LEXING PROCESS ON PROGRAM 3...
+LEX: SUCCESSFULLY COMPLETED WITH (0) errors.
+
+PARSE: BEGINNING PARSING PROCESS ON PROGRAM 3...
+PARSE: PARSE PROCESS SUCCESSFULLY COMPLETED.
+
+CST: Printing Program 3:
+ <Program>
+-<Block>
+--[{]
+--<StatementList>
+---<Statement>
+----<VarDecl>
+-----<Type>
+------[int]
+-----<ID>
+------[a]
+----<StatementList>
+-----<Statement>
+------<Block>
+------[{]
+-------<StatementList>
+--------<Statement>
+---------<VarDecl>
+----------<Type>
+-----------[boolean]
+----------<ID>
+-----------[b]
+--------<StatementList>
+---------<Statement>
+----------<Block>
+-----------[{]
+-----------<StatementList>
+------------<Statement>
+-------------<VarDecl>
+--------------<Type>
+---------------[string]
+--------------<ID>
+---------------[c]
+------------<StatementList>
+-------------<Statement>
+--------------<Block>
+---------------[{]
+---------------<StatementList>
+----------------<Statement>
+-----------------<Assign>
+-------------------<ID>
+--------------------[a]
+--------------------[=]
+-------------------<Expr>
+--------------------<IntExpr>
+---------------------<Digit>
+----------------------[5]
+-----------------<StatementList>
+------------------<Statement>
+-------------------<Assign>
+--------------------<ID>
+--------------------[b]
+--------------------[=]
+-------------------<Expr>
+--------------------<BooleanExpr>
+---------------------<BoolVal>
+----------------------[false]
+-----------------<StatementList>
+------------------<Statement>
+-------------------<Assign>
+--------------------<ID>
+--------------------[c]
+--------------------[=]
+-------------------<Expr>
+--------------------<StringExpr>
+---------------------["]
+---------------------<CharList>
+----------------------<Char>
+-----------------------[i]
+----------------------<CharList>
+-----------------------<Char>
+------------------------[n]
+-----------------------<CharList>
+------------------------<Char>
+-------------------------[t]
+------------------------<CharList>
+-------------------------<Char>
+--------------------------[a]
+--------------------------[CharList]
+---------------------["]
+------------------[StatementList]
+---------------[}]
+-------------<StatementList>
+--------------<Statement>
+---------------<Print>
+----------------[print]
+----------------[(]
+---------------<Expr>
+----------------<ID>
+-----------------[c]
+----------------[)]
+---------------[StatementList]
+------------[}]
+---------<StatementList>
+----------<Statement>
+-----------<Print>
+------------[print]
+------------[(]
+-----------<Expr>
+------------<ID>
+-------------[b]
+------------[)]
+-------------[StatementList]
+-------[}]
+----<StatementList>
+-----<Statement>
+------<Print>
+-------[print]
+-------[(]
+-------<Expr>
+--------<ID>
+---------[a]
+--------[)]
+-----[StatementList]
+--[}]
+-[$]
+
+SEMANTIC: STARTING SEMANTIC ANALYSIS ON PROGRAM 3.
+SEMANTIC: SEMANTIC ANALYSIS SUCCESSFULLY COMPLETED ON PROGRAM 3.
+
+AST: Printing AST for Program 3:
+ <Block>
+-<VarDecl>
+--[int]
+--[a]
+-<Block>
+--<VarDecl>
+---[boolean]
+---[b]
+--<Block>
+---<VarDecl>
+----[string]
+----[c]
+---<Block>
+----<Assign>
+-----[a]
+-----[5]
+----<Assign>
+-----[b]
+-----[false]
+----<Assign>
+-----[c]
+-----["inta"]
+---<Print>
+----[c]
+--<Print>
+---[b]
+-<Print>
+--[a]
+
+SYMB: Printing Symbol Table for Program 3:
+NAME TYPE       isINIT?   isUSED?   SCOPE
+[a   int        true      true      0]
+[b   boolean    true      true      1]
+[c   string     true      true      2]
