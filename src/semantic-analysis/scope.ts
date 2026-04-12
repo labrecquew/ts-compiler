@@ -13,6 +13,8 @@ export interface SymbolEntry {
   /** Matches printed `SCOPE` column (outermost block = 0). */
   scopeId: number;
   declaredAt: SourcePosition;
+  /** Traversal: emit at most one use-before-init warning per symbol. */
+  warnedUninitRead?: boolean;
 }
 
 /**

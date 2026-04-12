@@ -3,7 +3,9 @@ import { DiagnosticSeverity, type Diagnostic } from "../parser/diagnostics";
 import { buildAstFromTokens } from "./ast-builder";
 import { formatAstLines } from "./ast-print";
 import type { AstRoot } from "./ast-nodes";
+import { analyzeScopes, type ScopeAnalysisState } from "./scope-analysis";
 import { SemanticLogger } from "./semantic-logger";
+import { printSymbolTable } from "./symbol-table-print";
 
 export interface SemanticAnalyzerOptions {
   /** When true, suppress DEBUG lines (aligns with lexer/parser `--quiet`). */
@@ -13,6 +15,8 @@ export interface SemanticAnalyzerOptions {
 export interface SemanticRunResult {
   /** Present when Phase A completed without throwing (Phase B may add diagnostics later). */
   ast: AstRoot | null;
+  /** Present after a successful Phase A run once Phase B scope walk has executed. */
+  scopeState: ScopeAnalysisState | null;
   diagnostics: Diagnostic[];
   errorCount: number;
   warningCount: number;
@@ -21,7 +25,7 @@ export interface SemanticRunResult {
 
 /**
  * Orchestrates Phase A (tokens → AST) and Phase B (single DF in-order AST pass for
- * scopes, symbols, and types). Phase B is not implemented yet; Phase A prints the AST.
+ * scopes, symbols, and types). Type checks and full name resolution come in later steps.
  */
 export class SemanticAnalyzer {
   run(
@@ -37,6 +41,7 @@ export class SemanticAnalyzer {
     log.debug(`Phase A: building AST from ${tokens.length} token(s)`);
 
     let ast: AstRoot | null = null;
+    let scopeState: ScopeAnalysisState | null = null;
     try {
       ast = buildAstFromTokens(tokens, log);
     } catch (e) {
@@ -56,15 +61,22 @@ export class SemanticAnalyzer {
       for (const line of formatAstLines(ast)) {
         console.log(line);
       }
+
+      log.debug("Phase B: depth-first in-order scope traversal");
+      scopeState = analyzeScopes(ast, log, diagnostics);
     }
 
     const errorCount = countSeverity(diagnostics, DiagnosticSeverity.Error);
     const warningCount = countSeverity(diagnostics, DiagnosticSeverity.Warning);
     const hintCount = countSeverity(diagnostics, DiagnosticSeverity.Hint);
 
+    if (errorCount === 0 && scopeState !== null) {
+      printSymbolTable(programNumber, scopeState.symbolsInOrder, log);
+    }
+
     if (errorCount === 0) {
       log.info(
-        `Semantic analysis completed with ${errorCount} error(s) and ${warningCount} warning(s)`
+        `Semantic analysis completed with ${errorCount} error(s), ${warningCount} warning(s), and ${hintCount} hint(s)`
       );
     } else {
       log.semanticFailed(errorCount);
@@ -72,6 +84,7 @@ export class SemanticAnalyzer {
 
     return {
       ast,
+      scopeState,
       diagnostics,
       errorCount,
       warningCount,

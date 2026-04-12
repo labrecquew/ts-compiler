@@ -9,7 +9,9 @@
     "start:dist": "node dist/lexer/cli.js",
     "check": "tsc --noEmit",
     "test": "npm run build && node test/run-lexer-tests.js && node test/run-parser-tests.js",
-    "test:semantic-ast": "npm run build && node test/run-semantic-ast-test.js"
+    "test:semantic-ast": "npm run build && node test/run-semantic-ast-test.js",
+    "test:semantic-scopes": "npm run build && node test/run-semantic-scope-test.js",
+    "test:semantic-full": "npm run build && node test/run-semantic-full-test.js"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
