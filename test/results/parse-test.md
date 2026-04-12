@@ -8,7 +8,7 @@ Automated parser regression tests in [`run-parser-tests.js`](run-parser-tests.js
 npm test
 ```
 
-This rebuilds the project, runs [`run-lexer-tests.js`](run-lexer-tests.js), then [`run-parser-tests.js`](run-parser-tests.js).
+This rebuilds the project, runs [`run-lexer-tests.js`](run-lexer-tests.js), [`run-parser-tests.js`](run-parser-tests.js), then the semantic suite [`run-semantic-tests.js`](run-semantic-tests.js).
 
 ## Requirements
 

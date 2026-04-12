@@ -64,16 +64,24 @@ function main(): void {
       console.log(
         `INFO  Parser - Skipping parse for program ${segment.programNumber} because lexing reported ${segment.lexErrorCount} error(s).`
       );
+      console.log(
+        `INFO  SemanticAnalysis - Skipping semantic analysis for program ${segment.programNumber} because lexing reported error(s).`
+      );
       continue;
     }
 
     const parser = new Parser(segment.tokens, segment.programNumber, { debug: options.debug });
     parser.run();
 
-    if (parser.parseErrorCount() === 0) {
-      const semantics = new SemanticAnalyzer();
-      semantics.run(segment.tokens, segment.programNumber, { quiet: !options.debug });
+    if (parser.parseErrorCount() !== 0) {
+      console.log(
+        `INFO  SemanticAnalysis - Skipping semantic analysis for program ${segment.programNumber} because parsing reported error(s).`
+      );
+      continue;
     }
+
+    const semantics = new SemanticAnalyzer();
+    semantics.run(segment.tokens, segment.programNumber, { quiet: !options.debug });
   }
 }
 

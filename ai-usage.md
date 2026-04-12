@@ -35,5 +35,6 @@ I used cursor for this project, as I am taking an Applied AI class with Professo
 ---
 
 ## Semantic Analysis
-
-To be added
+- Out of all the phases, this one was the quickest. I had my approach dialed in from doing the lexer and the parser, and I knew how I wanted the Semantic Analysis to be approached. I had the least hiccups in this phase, because as said before, the previous experience of the past two phases were a good northstar for me to follow.
+- Pretty funny to me how it refers to your test case from the notes as the "golden input"
+- Throughout this project, each and every time it is still so amazing to me how AI in coding has developed from when ChatGPT dropped back in 2022

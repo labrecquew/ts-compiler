@@ -8,7 +8,7 @@ Automated lexer test suite plus shared input files in [`files/`](files/).
 npm test
 ```
 
-This command rebuilds the project, runs [`run-lexer-tests.js`](run-lexer-tests.js), then [`run-parser-tests.js`](run-parser-tests.js). Parser-focused notes and coverage live in [`parse-test.md`](parse-test.md).
+This command rebuilds the project, runs [`run-lexer-tests.js`](run-lexer-tests.js), [`run-parser-tests.js`](run-parser-tests.js), and [`run-semantic-tests.js`](run-semantic-tests.js). Parser-focused notes live in [`parse-test.md`](parse-test.md); semantic notes in [`semantic-test.md`](semantic-test.md).
 
 ## Coverage Summary
 
