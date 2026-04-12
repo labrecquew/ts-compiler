@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import { Parser } from "../parser/parser";
+import { SemanticAnalyzer } from "../semantic-analysis/semantic-analyzer";
 import { Lexer } from "./lexer";
 
 const CLI_USAGE = "Usage: npm start -- [--quiet|--debug] <filePath>";
@@ -68,6 +69,11 @@ function main(): void {
 
     const parser = new Parser(segment.tokens, segment.programNumber, { debug: options.debug });
     parser.run();
+
+    if (parser.parseErrorCount() === 0) {
+      const semantics = new SemanticAnalyzer();
+      semantics.run(segment.tokens, segment.programNumber, { quiet: !options.debug });
+    }
   }
 }
 

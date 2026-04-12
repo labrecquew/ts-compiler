@@ -70,6 +70,11 @@ export class Parser {
     this.log = new ParserLogger(options.debug ?? true);
   }
 
+  /** Count of **Error** diagnostics recorded during the last `run()` (excludes warnings/hints). */
+  parseErrorCount(): number {
+    return this.diagnostics.filter((d) => d.severity === DiagnosticSeverity.Error).length;
+  }
+
   /** Entry point: parse `Program`, emit traces, print CST only on success. */
   run(): void {
     this.log.info(`Parsing program ${this.programNumber}...`);
