@@ -1,0 +1,80 @@
+CODE GENERATION REQUIREMENTS
+=============================
+
+GENERAL INSTRUCTIONS
+- Write a code generator in src/code-generator/ that takes your AST and generates 6502a machine code (found in [./6502a-instruction-set.md]) for our language grammar.
+- Other folders in src can be reused or referenced as needed.
+- As with the phases before this one, include verbose output functionality that traces the stages of the parser including the construction of the symbol table and type checking actions.
+- When you detect an error report it in helpful detail including where it was found.
+- The generated code must conform to the 6502a instructions set.
+
+MEMORY / EXECUTABLE IMAGE
+- Total program size is limited to 256 bytes (0x00 - 0xFF).
+- Display memory in rows of 8 bytes.
+- Code ("text") section begins at 0x00 and grows downward toward 0xFF.
+- Stack (static variables) begins immediately after the last code byte and grows downward. (backpatching for beginning)
+- Heap (dynamic/reference variables) begins at 0xFF and grows upward toward 0x00.
+- Fill all unused bytes between the stack and heap with 0x00.
+
+VARIABLE INITIALIZATION
+- Integers must be initialized to 0 at declaration (VarDecl generates LDA #$00, STA <addr>).
+- Booleans are stored as single bytes (treat like integers: 0 = false, 1 = true).
+- Strings are stored in the heap as null-terminated (0x00) ASCII byte sequences.
+- A string variable in the static area holds a 1-byte pointer to the start of its string in the heap.
+
+STATIC DATA TABLE (for backpatching variable addresses)
+- Maintain a hash map with columns: Temp | Var | Scope | Offset
+- Each declared variable gets a temporary address placeholder (e.g., T0XX, T1XX, ...).
+- Offset is relative to the start of the static area (+0, +1, +2, ...).
+- Variables in different scopes with the same name get different temp entries (e.g., a@0, a@1).
+- After all code is generated, calculate the real base address of the static area, then
+  replace all TnXX placeholders with their real little-endian addresses.
+
+JUMP TABLE (for backpatching branch distances)
+- Maintain a separate hash map with columns: Temp | Distance
+- Each if-statement and while-loop generates a temporary jump placeholder (e.g., J0, J1, ...).
+- After generating the body of the branch, calculate the byte distance and backpatch the placeholder.
+- BNE distance is the number of bytes to skip forward (to land just after the if-body or loop body).
+
+IF STATEMENTS
+- Load the X register with the value of the left-hand side variable.
+- Use CPX to compare X against the right-hand side (must be in memory).
+- Emit BNE with a temporary jump distance (backpatch later).
+- Generate code for the true-branch body.
+- Backpatch the BNE distance once the full if-body size is known.
+
+WHILE LOOPS
+- Record the byte address of the top of the loop before generating the condition.
+- Generate the not-equal check the same way as an if-statement (CPX + BNE to exit).
+- At the end of the loop body, emit another BNE (or equivalent) that jumps back to the top.
+- The backward jump distance wraps around: if (current_address + distance) > 255,
+  subtract 256. Example: 0x4A + 0xBF = 265; 265 - 255 = 10 = 0x0A.
+- Backpatch the exit-BNE with the forward distance past the loop body.
+
+PRINT STATEMENTS
+- Print integer: LDY <var_addr> (load value), LDX #$01, SYS (FF).
+- Print string:  LDY #<heap_addr> (load pointer), LDX #$02, SYS (FF).
+  The Y register holds the heap address of the string, not the static pointer address.
+
+STRING ASSIGNMENT
+- Each string literal is written into the heap (high memory, growing upward).
+- Load the accumulator with the heap address of the new string.
+- Store the accumulator into the static pointer location for that variable (T2XX, etc.).
+- Re-assigning a string variable just updates the static pointer to point to the new heap string;
+  the old string data remains in the heap (no garbage collection needed).
+
+SCOPE / SYMBOL RESOLUTION
+- Variables are tagged with their scope number (e.g., a@0 = 'a' in scope 0).
+- When looking up a variable, search from the current scope outward (lexical scoping).
+- Each unique (name, scope) pair gets its own entry in the Static Data table.
+
+BREAK / END OF PROGRAM
+- Emit BRK (0x00) at the end of every program block.
+
+GENERAL BACKPATCHING ORDER
+1. Generate all op codes, using TnXX for variable addresses and Jn for jump distances.
+2. After all code is emitted, determine the start address of the static area
+   (= first byte after the last op code).
+3. Assign real addresses to each TnXX entry (base + offset) and replace in code.
+4. Assign real distances to each Jn entry and replace in code.
+5. Fill remaining bytes (between static area and heap) with 0x00.
