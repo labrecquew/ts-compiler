@@ -84,7 +84,9 @@ export class CodeGenerator {
       diagnostics: this.diagnostics,
       errorCount,
       imageRows: errorCount === 0 ? this.image.rows(true) : [],
-      stream: errorCount === 0 ? this.image.stream(this.image.codeAddress + this.staticData.size()) : ""
+      stream: errorCount === 0 ? this.image.stream(this.image.codeAddress + this.staticData.size()) : "",
+      codeEnd: this.image.codeAddress,
+      heapStart: this.image.heapStartAddress
     };
   }
 

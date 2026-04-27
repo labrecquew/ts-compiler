@@ -1,0 +1,400 @@
+:root {
+  color-scheme: dark;
+  font-family: "Cascadia Code", "Fira Code", Consolas, monospace;
+  background: #171a1d;
+  color: #e8edf0;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 1024px;
+  background:
+    linear-gradient(90deg, rgba(255, 144, 26, 0.08), transparent 18%, transparent 82%, rgba(26, 169, 255, 0.08)),
+    #171a1d;
+}
+
+button,
+textarea,
+input {
+  font: inherit;
+}
+
+button {
+  border: 1px solid #626970;
+  border-radius: 3px;
+  background: linear-gradient(#f1f3f4, #b9c0c5);
+  color: #1d2328;
+  cursor: pointer;
+  padding: 0.55rem 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+button:hover,
+button.active {
+  border-color: #1aa9ff;
+  box-shadow: inset 0 -3px 0 #1aa9ff;
+  color: #0d1117;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 1rem;
+  border-bottom: 4px solid #ff901a;
+  background:
+    repeating-linear-gradient(135deg, transparent 0 14px, rgba(255, 144, 26, 0.18) 14px 18px),
+    #2b3035;
+}
+
+.topbar h1 {
+  margin: 0;
+  color: #f7f9fa;
+  font-size: 1.15rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.topbar span {
+  color: #b8c0c7;
+  font-size: 0.82rem;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.primary {
+  background: linear-gradient(#23bcff, #0b75bd);
+  border-color: #62d0ff;
+  color: white;
+  box-shadow: inset 0 -3px 0 #075b93;
+}
+
+.mode-toggle {
+  display: flex;
+  gap: 0.7rem;
+  margin: 0;
+  padding: 0.45rem 0.65rem;
+  border: 1px solid #626970;
+  border-radius: 3px;
+  background: #d5d9dc;
+}
+
+.mode-toggle label {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: #1d2328;
+}
+
+.workspace {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+}
+
+.sidebar {
+  width: 280px;
+  border-right: 1px solid #616970;
+  background: #d8dcdf;
+  padding: 1rem;
+  overflow-y: auto;
+}
+
+.sidebar h2 {
+  margin: 0 0 0.75rem;
+  color: #1d2328;
+  font-size: 0.95rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.test-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.test-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+  text-align: left;
+  width: 100%;
+  background: #f3f4f5;
+  border-color: #aeb5ba;
+  color: #1d2328;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.test-card span {
+  color: #52606a;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.test-card em {
+  color: #c46200;
+  font-size: 0.72rem;
+  font-style: normal;
+  text-transform: uppercase;
+}
+
+.editor-shell {
+  flex: 1;
+  min-width: 0;
+  padding: 1rem;
+}
+
+.editor {
+  display: flex;
+  height: 100%;
+  min-height: 280px;
+  border: 1px solid #616970;
+  border-radius: 3px;
+  overflow: hidden;
+  background: #101417;
+}
+
+.line-gutter {
+  user-select: none;
+  min-width: 4rem;
+  padding: 1rem 0.75rem;
+  text-align: right;
+  color: #8f9aa3;
+  background: #252b30;
+  border-right: 1px solid #616970;
+  line-height: 1.45;
+  overflow: hidden;
+}
+
+.line-gutter span {
+  display: block;
+}
+
+textarea {
+  flex: 1;
+  width: 100%;
+  resize: none;
+  border: 0;
+  outline: 0;
+  padding: 1rem;
+  color: #ecf3f8;
+  background: #101417;
+  line-height: 1.45;
+  white-space: pre;
+  tab-size: 2;
+}
+
+.output-panel {
+  height: 42vh;
+  min-height: 260px;
+  border-top: 4px solid #1aa9ff;
+  background: #1f2428;
+  overflow: auto;
+  padding: 0.85rem 1rem 1rem;
+}
+
+.empty-output,
+.status-banner {
+  color: #b8c0c7;
+  padding: 1rem;
+  border: 1px dashed #7f8a92;
+  border-radius: 3px;
+}
+
+.program-card {
+  border: 1px solid #626970;
+  border-radius: 3px;
+  background: #2b3035;
+  margin-bottom: 0.75rem;
+  overflow: hidden;
+}
+
+.program-card summary {
+  cursor: pointer;
+  padding: 0.75rem 1rem;
+  color: #f7f9fa;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.program-card.ok summary span {
+  color: #1aa9ff;
+}
+
+.program-card:not(.ok) summary span {
+  color: #ff901a;
+}
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.65rem 1rem;
+  border-top: 1px solid #626970;
+  background: #d8dcdf;
+}
+
+.tabs button {
+  padding: 0.35rem 0.6rem;
+}
+
+.tab-body {
+  padding: 0.85rem 1rem 1rem;
+  border-top: 1px solid #626970;
+}
+
+.console-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.console-row {
+  display: grid;
+  grid-template-columns: 4.5rem 9.5rem minmax(0, 1fr);
+  gap: 0.7rem;
+  padding: 0.2rem 0;
+  color: #d8e0e5;
+}
+
+.console-level,
+.console-phase {
+  color: #8f9aa3;
+}
+
+.console-row.debug {
+  color: #8f9aa3;
+}
+
+.console-row.warn {
+  color: #ffbd63;
+}
+
+.console-row.error {
+  color: #ff901a;
+}
+
+.console-row.hint {
+  color: #62d0ff;
+}
+
+.tree-output {
+  margin: 0;
+  overflow: auto;
+  color: #e8edf0;
+  line-height: 1.35;
+}
+
+.memory-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.memory-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  width: max-content;
+}
+
+.memory-row {
+  display: grid;
+  grid-template-columns: 3.5rem repeat(8, 2.35rem);
+  gap: 0.25rem;
+  align-items: center;
+}
+
+.memory-address {
+  color: #8f9aa3;
+  text-align: right;
+  padding-right: 0.35rem;
+}
+
+.memory-cell {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 1.65rem;
+  border-radius: 5px;
+  border: 1px solid #626970;
+}
+
+.memory-cell.code,
+.legend-swatch.code {
+  background: #0b75bd;
+}
+
+.memory-cell.static,
+.legend-swatch.static {
+  background: #c46200;
+}
+
+.memory-cell.heap,
+.legend-swatch.heap {
+  background: #545c63;
+}
+
+.stream-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.stream-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  color: #d8e0e5;
+}
+
+.stream-output {
+  min-height: 4.5rem;
+  border: 1px solid #626970;
+  border-radius: 3px;
+  padding: 0.75rem;
+  color: #ecf3f8;
+  background: #101417;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.memory-legend {
+  display: flex;
+  gap: 1rem;
+  color: #b8c0c7;
+}
+
+.memory-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.legend-swatch {
+  display: inline-block;
+  width: 1rem;
+  height: 1rem;
+  border: 1px solid #626970;
+  border-radius: 4px;
+}

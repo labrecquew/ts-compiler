@@ -75,6 +75,10 @@ export class Parser {
     return this.diagnostics.filter((d) => d.severity === DiagnosticSeverity.Error).length;
   }
 
+  public cstLines(): string[] | null {
+    return this.parseErrorCount() === 0 ? this.tree.cstBodyLines() : null;
+  }
+
   /** Entry point: parse `Program`, emit traces, print CST only on success. */
   run(): void {
     this.log.info(`Parsing program ${this.programNumber}...`);

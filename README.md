@@ -6,9 +6,35 @@ This repository implements a small compiler pipeline: a table-driven **lexer**, 
 
 ## Commands
 
-### `npm start`
+### Run the frontend (recommended)
 
-Lex, parse, run semantic analysis, and generate a 256-byte 6502a memory image for each valid program in the file (from the first significant character through the end-of-program marker `$`).
+First-time setup:
+
+```bash
+cd frontend
+npm install
+```
+
+Then start the local app and open the URL Vite prints:
+
+```bash
+npm run dev
+```
+
+Pick a curated test or type your own source, choose Debug or Quiet output, and hit **Run**.
+
+### Frontend features
+
+- Curated sample programs for successful and failing compiler paths
+- Plain textarea editor with line-number gutter
+- Debug / Quiet toggle matching the CLI defaults
+- Per-program output with Console, CST, AST, Symbol Table, and Memory Image tabs
+- 8×32 memory grid colored by code, static, and heap regions
+- Editor contents persisted in `localStorage`
+
+### CLI (legacy)
+
+The CLI is still supported, but the frontend is the recommended interface for day-to-day use. It lexes, parses, runs semantic analysis, and generates a 256-byte 6502a memory image for each valid program in the file (from the first significant character through the end-of-program marker `$`).
 
 ```bash
 npm start -- [--quiet | --debug] <filePath>
@@ -16,14 +42,6 @@ npm start -- [--quiet | --debug] <filePath>
 
 - A `filePath` is required.
 - Per-token traces are on by default. Use `--quiet` to hide `DEBUG Lexer` / `DEBUG Parser` / `DEBUG SemanticAnalysis` / `DEBUG CodeGen` lines while keeping `INFO`, warnings, errors, and hints.
-
-Examples:
-
-```bash
-npm start -- test/files/parser-valid-mixed.txt
-npm start -- --quiet test/files/semantic-golden-input.txt
-npm start -- test/files/codegen-int-print.txt
-```
 
 ### `npm test`
 

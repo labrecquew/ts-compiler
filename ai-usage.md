@@ -46,3 +46,8 @@ I used cursor for this project, as I am taking an Applied AI class with Professo
 - After making my meta-prompt for code gen, I took a couple days of break to study for exam 2. During that time, GPT-5.5 dropped. 4.7 and 5.5 dropping in the same phase? Funny to me. 
 - Out of curiosity of it's strength, I had GPT-5.5 run through my meta-prompt in one shot from Plan mode to build. It asked me if I wanted to follow the prompt step by step, or build the full thing, and also asked about print logic, and I answered to write it into heap memory first, then store the static pointer to the beginning of the string.
 - Took a little over 2 minutes, and only 27.2% of my context window... Great efficiency. 23 files changed in the build, and it took a long time to go over them all. Code gen seems to be working great on all the tests it generated, and I tried some form the notes and they worked as expected.
+
+---
+
+## Frontend
+- Wanted to make a frontend so when I submit it, you have an easier time actually running test cases compared to using the command line like in the prior commits. Was honestly pretty lazy with the frontend and didn't put much effort into the prompt, just let it do it's thing from plan mode then fed the plan to another agent.

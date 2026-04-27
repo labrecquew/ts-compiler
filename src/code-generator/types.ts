@@ -9,4 +9,6 @@ export interface CodeGeneratorResult {
   errorCount: number;
   imageRows: string[];
   stream: string;
+  codeEnd: number;
+  heapStart: number;
 }
