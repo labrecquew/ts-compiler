@@ -38,3 +38,10 @@ I used cursor for this project, as I am taking an Applied AI class with Professo
 - Out of all the phases, this one was the quickest. I had my approach dialed in from doing the lexer and the parser, and I knew how I wanted the Semantic Analysis to be approached. I had the least hiccups in this phase, because as said before, the previous experience of the past two phases were a good northstar for me to follow.
 - Pretty funny to me how it refers to your test case from the notes as the "golden input"
 - Throughout this project, each and every time it is still so amazing to me how AI in coding has developed from when ChatGPT dropped back in 2022
+
+---
+
+## Code Generation
+- Opus 4.7 has dropped at the time of making code generation, and WOW does it eat through my context window extremely quickly. Wondering if that is the same for everyone else or not.
+- After making my meta-prompt for code gen, I took a couple days of break to study for exam 2. During that time, GPT-5.5 dropped. 4.7 and 5.5 dropping in the same phase? Funny to me. 
+- Out of curiosity of it's strength, I had GPT-5.5 run through my meta-prompt in one shot from Plan mode to build. It asked me if I wanted to follow the prompt step by step, or build the full thing, and also asked about print logic, and I answered to write it into heap memory first, then store the static pointer to the beginning of the string.

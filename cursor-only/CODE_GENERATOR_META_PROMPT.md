@@ -6,7 +6,7 @@
 
 ## Your Role and Context
 
-You have a PhD in computer science and are an expert in compilers, TypeScript, and classic 8-bit machine architectures. The assignment is to implement **code generation** after **lex**, **parse**, and **semantic analysis** succeed: walk the **AST** (built during semantic analysis) together with the resolved **symbol table**, and emit a **6502a machine-code image** that conforms to the instruction set in [`cursor-only/6502a-instruction-set.md`](cursor-only/6502a-instruction-set.md) and the rules in [`cursor-only/codeGenRequirements.txt`](cursor-only/codeGenRequirements.txt).
+You have a PhD in computer science and are an expert in compilers, TypeScript, and classic 8-bit machine architectures. The assignment is to implement **code generation** after **lex**, **parse**, and **semantic analysis** succeed: walk the **AST** (built during semantic analysis) together with the resolved **symbol table**, and emit a **6502a machine-code image** that conforms to the instruction set in [`cursor-only/6502a-instruction-set.md`](cursor-only/6502a-instruction-set.md), the rules in [`cursor-only/codeGenRequirements.txt`](cursor-only/codeGenRequirements.txt), and the worked traces in [`cursor-only/codeGenExamples.txt`](cursor-only/codeGenExamples.txt).
 
 **Implementation language:** TypeScript in this repository, under [`src/code-generator/`](src/code-generator/), integrating with the AST and symbol table produced by [`src/semantic-analysis/`](src/semantic-analysis/) and with the CLI in [`src/lexer/cli.ts`](src/lexer/cli.ts). Other folders under `src/` may be reused or referenced as needed.
 
@@ -43,6 +43,7 @@ flowchart LR
 - All emitted bytes must come from a typed opcode module (enum or const map) that mirrors the mnemonic/hex pairs in [`cursor-only/6502a-instruction-set.md`](cursor-only/6502a-instruction-set.md). No magic numbers sprinkled through emission code.
 - The AST walk is a single depth-first pass over the nodes produced by semantic analysis (`<Block>`, `<VarDecl>`, `<Assign>`, `<Print>`, `<If>`, `<While>`, plus the expression nodes). One function per construct, mirroring the parser/semantic style.
 - **Static Data Table** (hash map): columns `Temp | Var | Scope | Offset`. Each declared variable gets a unique temporary placeholder (`T0XX`, `T1XX`, `T2XX`, ...). `(name, scope)` pairs are unique (`a@0` vs `a@1` are distinct entries). Offset is relative to the start of the static area (`+0`, `+1`, ...).
+- **`TnXX` is literally two bytes in the code stream** — the `Tn` byte and the `XX` byte. After backpatching, those two bytes become the **little-endian** real address: `<lowByte> <highByte>`. Worked trace from [`cursor-only/codeGenExamples.txt`](cursor-only/codeGenExamples.txt) Example 1: `8D T0 XX` becomes `8D 11 00` once the static area is determined to start at `0x11`. Every Static Data Table row therefore reserves two placeholder bytes per occurrence in the image.
 - **Jump Table** (hash map): columns `Temp | Distance`. Each `if` and each `while` gets temporary placeholders (`J0`, `J1`, ...) for branch distances, backpatched once the branch body size is known.
 - Keep all emission side effects (image writes, table inserts, logging) outside of core traversal control flow where practical.
 
@@ -70,7 +71,7 @@ Every rule below must appear in the generator and in its DEBUG trace.
 - **Assignment — `Id = Id`**: `LDA <srcAddr> / STA <dstAddr>`, where both addresses come from `(name, scope)` lookup that walks the current scope outward (lexical scoping, consistent with semantic analysis).
 - **Assignment — string literal**: write the ASCII bytes + trailing `0x00` into the heap, capturing the **heap start address**, then `LDA #<heapStart> / STA TnXX`.
 - **Print — integer or boolean**: `LDY <addr> / LDX #$01 / SYS`.
-- **Print — string**: `LDY #<heapAddr> / LDX #$02 / SYS`. Y must hold the heap address of the string's first byte, **not** the static pointer slot's address.
+- **Print — string**: `LDY #<heapAddr> / LDX #$02 / SYS`. Y must hold the heap address of the string's first byte, **not** the static pointer slot's address. Per [`cursor-only/codeGenExamples.txt`](cursor-only/codeGenExamples.txt) Example 2, the simulator's `LDY` immediate is encoded with **only a single address byte** (e.g. `A0 06`), not the two-byte little-endian form used by memory-mode loads. Document this quirk in code comments.
 - **If** (`if BooleanExpr Block`): `LDX <lhs> / CPX <rhs> / BNE Jn`; emit body; backpatch `Jn` with the forward byte distance past the body. Invert branch sense for `==` (skip when not equal = skip when condition false) vs `!=` (skip when equal = skip when condition false); both reduce to `BNE` around the body with the correct operand order.
 - **While** (`while BooleanExpr Block`): record the **byte address at the top of the loop** before emitting the condition; emit the condition the same way as `if` with an exit `BNE Jexit`; emit the body; emit a back-jump at the bottom that lands on the recorded top-of-loop byte (see wraparound rule below); backpatch `Jexit` with the forward byte distance past the back-jump. Because the ISA has only `BNE`, the back-jump is expressed as `LDX #$01 / CPX #$00 / BNE Jback` (or an equivalent always-unequal pattern); use whatever formulation the requirements and worked examples support.
 - **Backward-jump wraparound**: if `(currentAddress + 2 + distance) > 255`, subtract `256`. Worked example from requirements: `0x4A + 0xBF = 265`; `265 - 256 = 9 -> 0x09`, i.e. the distance byte wraps around so the CPU's program counter lands back at the recorded top-of-loop byte. Document this math in a comment where it is applied.
@@ -126,7 +127,21 @@ Align with the lexer, parser, and semantic-analysis polish already in the repo:
 **Image printing** (only if code-generation error count is zero):
 
 - `INFO  CodeGen - Printing memory image for program N...`
-- Memory rows of exactly 8 bytes, space-separated, uppercase hex, matching the style of the worked examples in [`cursor-only/6502a-instruction-set.md`](cursor-only/6502a-instruction-set.md).
+- Memory rows of exactly 8 bytes, space-separated, uppercase hex, with a row-address prefix matching [`cursor-only/codeGenExamples.txt`](cursor-only/codeGenExamples.txt):
+
+  ```text
+  00: A9 00 8D 11 00 A9 05 8D
+  08: 11 00 AC 11 00 A2 01 FF
+  10: 00 00 00 00 00 00 00 00
+  ...
+  ```
+- During incremental DEBUG traces of the in-progress image, unwritten bytes appear as `..` exactly as the examples show. The **final** post-backpatch dump replaces every remaining `..` with `00` (zero-fill).
+- Placeholders appear in the in-progress image with their literal token (`T0 XX`, `J0`, etc.) so the user can read the trace before backpatching:
+
+  ```text
+  00: A9 00 8D T0 XX A9 05 8D
+  08: T0 XX AC T0 XX A2 01 FF
+  ```
 - Optional: `INFO  CodeGen - Static Data Table for program N...` and `INFO  CodeGen - Jump Table for program N...` with aligned columns.
 
 ---
@@ -154,8 +169,9 @@ Execute **one step at a time**. Stop after each step for user review and commit.
 
 - Walk the AST root `<Block>` and emit a single `BRK` (`0x00`).
 - Run the full backpatching pipeline even though it is trivial: compute static base (= `0x01`), resolve empty tables, zero-fill the rest.
-- Pretty-print the 256-byte image in rows of 8.
-- Verify against a hand-traced expected image for input `{}$` (row 0 begins `00 00 00 00 00 00 00 00`, all remaining rows identical).
+- Pretty-print the 256-byte image in rows of 8 with the `00:` / `08:` / `10:` row-address prefix shown in [`cursor-only/codeGenExamples.txt`](cursor-only/codeGenExamples.txt).
+- During in-progress emission DEBUG traces, unwritten bytes appear as `..`; the final dump replaces every `..` with `00`.
+- Verify against a hand-traced expected image for input `{}$`: row `00:` begins `00 00 00 00 00 00 00 00`, all remaining rows identical.
 - **Deliverable:** Empty program produces a correctly formatted 256-byte image. Stop. Do not proceed until the user says continue.
 
 ---
@@ -168,8 +184,25 @@ Execute **one step at a time**. Stop after each step for user review and commit.
 - On `<Assign>` with `Id = Id`: emit `LDA <srcAddr> / STA <dstAddr>`; resolve addresses via a `(name, scope)` lookup that walks up the scope chain so shadowed variables (`a@0` vs `a@1`) resolve correctly.
 - First real use of the Static Data Table and backpatching: compute static base = first byte after `BRK`, replace every `TnXX` in the image with its real little-endian address byte(s).
 - DEBUG trace every emission, every table insert, every backpatch.
-- **Test inputs** (hand-trace expected bytes against Example One in [`cursor-only/6502a-instruction-set.md`](cursor-only/6502a-instruction-set.md)): `{ int a }$`, `{ int a a = 3 }$`, `{ int a int b a = 3 b = a }$`.
-- **Deliverable:** Variables and int/bool assignments emit and backpatch correctly. Stop. Do not proceed until the user says continue.
+- **Golden trace** (must match this byte stream exactly): input `{ int i  i = 5  print(i) }$` is the worked Example 1 in [`cursor-only/codeGenExamples.txt`](cursor-only/codeGenExamples.txt). Pre-backpatch image:
+
+  ```text
+  00: A9 00 8D T0 XX A9 05 8D
+  08: T0 XX AC T0 XX A2 01 FF
+  10: 00 .. .. .. .. .. .. ..
+  ```
+
+  Post-backpatch (static area starts at `0x11`, so `T0 XX` -> `11 00` little-endian):
+
+  ```text
+  00: A9 00 8D 11 00 A9 05 8D
+  08: 11 00 AC 11 00 A2 01 FF
+  10: 00 00 00 00 00 00 00 00
+  ```
+
+  Stream form: `A9 00 8D 11 00 A9 05 8D 11 00 AC 11 00 A2 01 FF 00`.
+- **Additional test inputs** (hand-trace bytes): `{ int a }$`, `{ int a a = 3 }$`, `{ int a int b a = 3 b = a }$`.
+- **Deliverable:** Variables and int/bool assignments emit and backpatch correctly; Example 1 matches byte-for-byte. Stop. Do not proceed until the user says continue.
 
 ---
 
@@ -237,6 +270,7 @@ Execute **one step at a time**. Stop after each step for user review and commit.
 |------|---------|
 | [`cursor-only/grammar.md`](cursor-only/grammar.md) | Authoritative grammar; every emission rule traces back to a production |
 | [`cursor-only/codeGenRequirements.txt`](cursor-only/codeGenRequirements.txt) | Course requirements: memory model, tables, backpatching, per-construct recipes |
+| [`cursor-only/codeGenExamples.txt`](cursor-only/codeGenExamples.txt) | Worked byte-by-byte traces; **golden** for the `int i / i = 5 / print(i)` example and for the string-print backpatch flow |
 | [`cursor-only/6502a-instruction-set.md`](cursor-only/6502a-instruction-set.md) | ISA reference and two worked examples used as golden shapes |
 | [`src/semantic-analysis/`](src/semantic-analysis/) | Source of the AST and symbol table consumed by code generation |
 | [`src/code-generator/`](src/code-generator/) | New module created by this meta-prompt |
@@ -248,10 +282,10 @@ Execute **one step at a time**. Stop after each step for user review and commit.
 
 ## Example Test Cases (Verify Against Grammar and Requirements)
 
-- **C1** `{}$` -> one `BRK` at `0x00`, rest zero-filled, rows of 8 bytes.
-- **C2** `{ int a a = 3 print(a) }$` -> matches the structure of Example One in [`cursor-only/6502a-instruction-set.md`](cursor-only/6502a-instruction-set.md); verifies `VarDecl`, int assignment, print, static-table backpatching.
-- **C3** `{ string s s = "DONE" print(s) }$` -> exercises the heap allocator, string null-termination, pointer slot, and string print path (`LDX #$02`, Y holds heap address).
-- **C4** `{ int a a = 1 while (a != 3) { print(a) a = 1 + a } }$` -> mirrors Example Two: `while` with wraparound back-jump, forward exit `BNE`, and `IntExpr ::= digit intop Expr`.
+- **C1** `{}$` -> one `BRK` at `0x00`, rest zero-filled, rows of 8 bytes with the `00:` / `08:` / ... row-address prefix.
+- **C2** `{ int i i = 5 print(i) }$` -> **byte-for-byte match** of [`cursor-only/codeGenExamples.txt`](cursor-only/codeGenExamples.txt) Example 1. Final stream: `A9 00 8D 11 00 A9 05 8D 11 00 AC 11 00 A2 01 FF 00`. Verifies `VarDecl`, int assignment, print, two-byte `TnXX` placeholders, and little-endian backpatch.
+- **C3** `{ string s s = "ALAN" print(s) }$` -> mirrors the heap/string concepts in Example 2 of [`cursor-only/codeGenExamples.txt`](cursor-only/codeGenExamples.txt) under the **current** memory model (heap from `0xFF` downward, static slot holds 1-byte heap pointer); verifies null-terminated ASCII bytes (`41 4C 41 4E 00`) in the heap and the `LDX #$02` print path.
+- **C4** `{ int a a = 1 while (a != 3) { print(a) a = 1 + a } }$` -> mirrors Example Two in [`cursor-only/6502a-instruction-set.md`](cursor-only/6502a-instruction-set.md): `while` with wraparound back-jump, forward exit `BNE`, and `IntExpr ::= digit intop Expr` via `ADC`.
 - **C5** `{ int a a = 1 { int a a = 2 print(a) } print(a) }$` -> nested blocks with shadowing; verifies `a@0` vs `a@1` are distinct static slots and lookups walk up correctly.
 - **C6** A program engineered to exceed 256 bytes or force heap/stack collision -> verifies excellent error messaging and suppression of the image dump.
 

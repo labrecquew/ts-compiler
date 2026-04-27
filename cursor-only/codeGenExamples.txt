@@ -1,0 +1,101 @@
+----------------------------------------
+- Simple Code Generation Example 1     -
+- (based on this current grammar) -
+----------------------------------------
+
+Source code:
+{
+   int i
+   i = 5 
+   print(i)
+}
+$
+
+int i makes an entry into the stack temp table, aliasing i with location t0 xx.  If 
+      we are being nice, then we could initialize i to 0 with the following code:
+      A9 00 8D t0 xx.  (LDA 0, STA t0xx)
+
+i=5 turns into A9 05 8D T0 XX (remember, t0xx will be replaced by a real value later.)
+
+00: A9 00 8D T0 XX A9 05 8D  
+08: t0 xx .. .. .. .. .. .. 
+10: .. .. .. .. .. .. .. .. 
+
+print(i) adds AC T0 XX A2 01 FF to the opcode stream
+
+00: A9 00 8D t0 xx A9 05 8D  
+08: t0 xx AC t0 xx A2 01 FF 
+10: .. .. .. .. .. .. .. .. 
+
+Then let's put a break (00) at the end.
+
+00: A9 00 8D T0 XX A9 05 8D  
+08: T0 XX AC T0 XX A2 01 FF 
+10: 00 .. .. .. .. .. .. .. 
+
+Now we can see that we can begin the stack area at location 0x11.
+In the little endian convention, that's 11 00.  Backpatch that into the code.
+
+00: A9 00 8D 11 00 A9 05 8D  
+08: 11 00 AC 11 00 A2 01 FF 
+10: 00 .. .. .. .. .. .. .. 
+
+And we're done.  Looking at it as a stream: A9 00 8D 11 00 A9 05 8D 11 00 AC 11 00 A2 01 FF 00
+
+------------------------------------
+- Simple Code Generation Example 2 -
+- (based on an old grammar)        -
+------------------------------------
+
+Source code:
+{
+   string n
+   n = "ALAN" 
+   print(n)
+}
+$
+
+string n   makes an entry into the heap temp table, aliasing n with location t0. That's
+           about all we can do now since we don't yet know where the heap will begin.
+
+n = "ALAN" is where we have to make a choice to either (1) write the immutable
+           string literal into the runtime image and use more heap memory should 
+           we alter its value; or (2) generate the op codes to load and store
+           the ASCII values of the string literal, which creates more code but
+           allows us to make the string mutable and reuse its heap memory in 
+           circumstances where its redefined value is equal or shorter in length.
+
+           For this example, let's take the first option, though there is nothing
+           wrong with the second choice.
+
+           Update the heap table with the new value of n. ("ALAN")
+           
+print(n)   Finally we can generate some code.  A0 t0 A2 02 FF
+
+00: A0 t0 A2 02 FF .. .. ..
+08: .. .. .. .. .. .. .. .. 
+
+We're at the end of the code, so add a BRK.
+
+00: A0 t0 A2 02 FF 00 .. ..
+08: .. .. .. .. .. .. .. .. 
+
+We can begin the heap area at 0x06 because there is no stack space in this tiny example.
+If there were stack-allocated variables, we'd have to move the beginning of the heap to 
+just after the end of the stack area. Backpatch the heap start value into the code.
+
+00: A0 06 A2 02 FF 00 .. .. Note that we used only one byte of the address here. This
+08: .. .. .. .. .. .. .. .. is an inconsistency in the CPU simulation. It's Alan's fault.
+
+Now write the string literal into the heap. We'll null-terminate our strings, so "ALAN" takes
+five (5) bytes: A, L, A, N, null.
+  A  = ASCII 65 base 10 or 41 in hex
+  L  = 0x4C
+  A  = 0x41
+  N  = 0x4E
+null = 00
+
+00: A0 06 A2 02 FF 00 41 4C
+08: 41 4E 00 .. .. .. .. .. 
+
+And we're done.  Looking at it as a stream: A0 06 A2 02 FF 00 41 4C 41 4E 00
