@@ -2,6 +2,7 @@ import { useState } from "react";
 
 interface MemoryGridProps {
   image: { rows: string[]; codeEnd: number; heapStart: number; stream: string } | null;
+  programNumber: number;
   status: string;
 }
 
@@ -9,11 +10,11 @@ function hexAddress(addr: number): string {
   return `0x${addr.toString(16).toUpperCase().padStart(2, "0")}`;
 }
 
-export function MemoryGrid({ image, status }: MemoryGridProps) {
+export function MemoryGrid({ image, programNumber, status }: MemoryGridProps) {
   const [copyLabel, setCopyLabel] = useState("Copy op codes");
 
   if (image === null) {
-    return <div className="status-banner">Memory image unavailable: {status}</div>;
+    return <div className="status-banner">Program {programNumber} memory image unavailable: {status}</div>;
   }
 
   const bytes = image.rows.flatMap((row) => row.trim().split(/\s+/));
@@ -44,10 +45,15 @@ export function MemoryGrid({ image, status }: MemoryGridProps) {
       </div>
       <div className="stream-block">
         <div className="stream-header">
-          <span>Full memory image op codes</span>
+          <span>Program {programNumber} full memory image op codes</span>
           <button onClick={copyFullMemoryImage}>{copyLabel}</button>
         </div>
-        <textarea className="stream-output" readOnly value={fullMemoryImage} aria-label="Full memory image op codes" />
+        <textarea
+          className="stream-output"
+          readOnly
+          value={fullMemoryImage}
+          aria-label={`Program ${programNumber} full memory image op codes`}
+        />
       </div>
       <div className="memory-legend" aria-label="Memory region legend">
         <span><i className="legend-swatch code" /> code</span>

@@ -102,7 +102,7 @@ function ProgramOutput({ program }: { program: ProgramResult }) {
   return (
     <details className={`program-card ${program.status}`} open>
       <summary>
-        Program {program.programNumber} - <span>{program.status}</span>
+        Program {program.programNumber} Output Cycle - <span>{program.status}</span>
       </summary>
       <div className="tabs" role="tablist" aria-label={`Program ${program.programNumber} output tabs`}>
         {TAB_LABELS.map((tab) => (
@@ -120,7 +120,9 @@ function ProgramOutput({ program }: { program: ProgramResult }) {
           <PreTab lines={program.astLines} placeholder="n/a (semantic analysis did not produce an AST)" />
         )}
         {activeTab === "Symbol Table" && <SymbolTableTab program={program} />}
-        {activeTab === "Memory Image" && <MemoryGrid image={program.image} status={program.status} />}
+        {activeTab === "Memory Image" && (
+          <MemoryGrid image={program.image} programNumber={program.programNumber} status={program.status} />
+        )}
       </div>
     </details>
   );
