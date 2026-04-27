@@ -1,0 +1,17 @@
+{
+  int x
+  {
+    boolean y
+    {
+      string z
+      {
+        x = 7
+        y = true
+        z = "hello"
+      }
+      print(z)
+    }
+    print(y)
+  }
+  print(x)
+}$

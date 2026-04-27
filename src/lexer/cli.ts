@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { CodeGenerator } from "../code-generator";
 import { Parser } from "../parser/parser";
 import { SemanticAnalyzer } from "../semantic-analysis/semantic-analyzer";
 import { Lexer } from "./lexer";
@@ -67,6 +68,9 @@ function main(): void {
       console.log(
         `INFO  SemanticAnalysis - Skipping semantic analysis for program ${segment.programNumber} because lexing reported error(s).`
       );
+      console.log(
+        `INFO  CodeGen - Skipping code generation for program ${segment.programNumber} because lexing reported error(s).`
+      );
       continue;
     }
 
@@ -77,11 +81,29 @@ function main(): void {
       console.log(
         `INFO  SemanticAnalysis - Skipping semantic analysis for program ${segment.programNumber} because parsing reported error(s).`
       );
+      console.log(
+        `INFO  CodeGen - Skipping code generation for program ${segment.programNumber} because parsing reported error(s).`
+      );
       continue;
     }
 
     const semantics = new SemanticAnalyzer();
-    semantics.run(segment.tokens, segment.programNumber, { quiet: !options.debug });
+    const semanticResult = semantics.run(segment.tokens, segment.programNumber, { quiet: !options.debug });
+    if (
+      semanticResult.errorCount !== 0 ||
+      semanticResult.ast === null ||
+      semanticResult.scopeState === null
+    ) {
+      console.log(
+        `INFO  CodeGen - Skipping code generation for program ${segment.programNumber} because semantic analysis reported error(s).`
+      );
+      continue;
+    }
+
+    const codeGenerator = new CodeGenerator();
+    codeGenerator.run(semanticResult.ast, semanticResult.scopeState, segment.programNumber, {
+      quiet: !options.debug
+    });
   }
 }
 

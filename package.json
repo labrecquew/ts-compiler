@@ -8,8 +8,9 @@
     "start": "ts-node src/lexer/cli.ts",
     "start:dist": "node dist/lexer/cli.js",
     "check": "tsc --noEmit",
-    "test": "npm run build && node test/run-lexer-tests.js && node test/run-parser-tests.js && node test/run-semantic-tests.js",
-    "test:semantic": "npm run build && node test/run-semantic-tests.js"
+    "test": "npm run build && node test/run-lexer-tests.js && node test/run-parser-tests.js && node test/run-semantic-tests.js && node test/run-codegen-tests.js",
+    "test:semantic": "npm run build && node test/run-semantic-tests.js",
+    "test:codegen": "npm run build && node test/run-codegen-tests.js"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
