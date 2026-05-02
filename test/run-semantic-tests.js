@@ -263,7 +263,7 @@ const tests = [
     }
   },
   {
-    name: "assignment type mismatch is an error",
+    name: "assignment of a string literal into an int is a semantic error",
     run() {
       const { result } = runSemanticsQuiet(readFixture("semantic-type-mismatch.txt"));
       assert.ok(result.errorCount >= 1);

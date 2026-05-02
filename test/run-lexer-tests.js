@@ -124,6 +124,15 @@ const tests = [
     }
   },
   {
+    name: "accepts assignment operators without surrounding spaces",
+    run() {
+      const { tokens, output } = runLexer('{a=1 b="not an int"}$');
+
+      assert.strictEqual(countToken(tokens, TokenType.ASSIGN_OP), 2);
+      assertOutputContains(output, "Lex completed with 0 errors");
+    }
+  },
+  {
     name: "reports invalid characters as lexer errors",
     run() {
       const source = '{/* comments are still ignored */ int @}$';

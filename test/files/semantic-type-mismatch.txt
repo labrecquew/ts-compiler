@@ -1,4 +1,4 @@
 {
   int a
-  a = true
+  a="not an int"
 }$

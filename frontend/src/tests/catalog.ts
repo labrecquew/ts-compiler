@@ -217,10 +217,10 @@ export const CURATED_TESTS: CuratedTest[] = [
   {
     id: "type-mismatch",
     name: "Type mismatch",
-    description: "Assigning boolean into an int fails semantic analysis.",
+    description: "Assigning a string literal into an int fails semantic analysis.",
     source: `{
   int a
-  a = true
+  a="not an int"
 }$`,
     expected: "semantic-error"
   },
