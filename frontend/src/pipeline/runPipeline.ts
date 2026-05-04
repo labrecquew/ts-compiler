@@ -1,6 +1,6 @@
 import { CodeGenerator } from "@compiler/code-generator";
 import { Lexer } from "@compiler/lexer/lexer";
-import type { Diagnostic } from "@compiler/parser/diagnostics";
+import { DiagnosticSeverity, type Diagnostic } from "@compiler/parser/diagnostics";
 import { Parser } from "@compiler/parser/parser";
 import { formatAstLines, SemanticAnalyzer, type SymbolEntry } from "@compiler/semantic-analysis";
 
@@ -24,6 +24,12 @@ export interface LogEntry {
   text: string;
 }
 
+type DiagnosticPhase = Extract<LogEntry["phase"], "Lexer" | "Parser" | "SemanticAnalysis" | "CodeGen">;
+
+export interface PhasedDiagnostic extends Diagnostic {
+  phase: DiagnosticPhase;
+}
+
 export interface ProgramResult {
   programNumber: number;
   status: "ok" | "lex-failed" | "parse-failed" | "semantic-failed" | "codegen-failed";
@@ -32,11 +38,13 @@ export interface ProgramResult {
   astLines: string[] | null;
   symbols: SymbolEntry[] | null;
   image: { rows: string[]; codeEnd: number; heapStart: number; stream: string } | null;
-  diagnostics: Diagnostic[];
+  diagnostics: PhasedDiagnostic[];
 }
 
 const LOG_RE = /^(INFO|DEBUG|WARN|ERROR|HINT)\s+(\S+)\s+-\s(.*)$/;
 const LEXING_PROGRAM_RE = /^INFO\s+Lexer\s+-\s+Lexing program\s+(\d+)\.\.\.$/;
+const LOG_DIAGNOSTIC_RE =
+  /^(ERROR|WARN|HINT)\s+(Lexer|Parser)\s+-\s+(?:Error|Warning|Hint):(\d+):(\d+)\s+(.+)$/;
 
 type BodyPhase = Extract<LogEntry["phase"], "CST" | "AST" | "Symbol Table" | "Memory Image">;
 
@@ -94,6 +102,38 @@ function nextBodyPhase(line: string, entry: LogEntry): BodyPhase | null {
     entry.phase === "Memory Image"
     ? entry.phase
     : null;
+}
+
+function diagnosticsFromLexerParserLogs(lines: readonly string[]): PhasedDiagnostic[] {
+  return lines.flatMap((line) => {
+    const match = LOG_DIAGNOSTIC_RE.exec(line);
+    if (match === null) {
+      return [];
+    }
+
+    const [, level, phase, lineNumber, column, message] = match;
+    return [
+      {
+        phase: phase as DiagnosticPhase,
+        severity:
+          level === "ERROR"
+            ? DiagnosticSeverity.Error
+            : level === "WARN"
+              ? DiagnosticSeverity.Warning
+              : DiagnosticSeverity.Hint,
+        line: Number(lineNumber),
+        column: Number(column),
+        message
+      }
+    ];
+  });
+}
+
+function withPhase(phase: DiagnosticPhase, diagnostics: readonly Diagnostic[]): PhasedDiagnostic[] {
+  return diagnostics.map((diagnostic) => ({
+    ...diagnostic,
+    phase
+  }));
 }
 
 export function runPipeline(opts: PipelineOptions): { programs: ProgramResult[] } {
@@ -186,7 +226,7 @@ export function runPipeline(opts: PipelineOptions): { programs: ProgramResult[] 
           astLines,
           symbols,
           image: null,
-          diagnostics: semanticResult.diagnostics
+          diagnostics: withPhase("SemanticAnalysis", semanticResult.diagnostics)
         });
         continue;
       }
@@ -212,7 +252,10 @@ export function runPipeline(opts: PipelineOptions): { programs: ProgramResult[] 
                 stream: codegenResult.stream
               }
             : null,
-        diagnostics: [...semanticResult.diagnostics, ...codegenResult.diagnostics]
+        diagnostics: [
+          ...withPhase("SemanticAnalysis", semanticResult.diagnostics),
+          ...withPhase("CodeGen", codegenResult.diagnostics)
+        ]
       });
     }
   } finally {
@@ -220,10 +263,14 @@ export function runPipeline(opts: PipelineOptions): { programs: ProgramResult[] 
   }
 
   return {
-    programs: programs.map((program) => ({
-      ...program,
-      log: parseLogLines(rawLogs.get(program.programNumber) ?? [])
-    }))
+    programs: programs.map((program) => {
+      const lines = rawLogs.get(program.programNumber) ?? [];
+      return {
+        ...program,
+        log: parseLogLines(lines),
+        diagnostics: [...diagnosticsFromLexerParserLogs(lines), ...program.diagnostics]
+      };
+    })
   };
 }
 

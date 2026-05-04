@@ -4,7 +4,7 @@ import { runPipeline, type LogEntry, type ProgramResult } from "./pipeline/runPi
 import { CURATED_TESTS } from "./tests/catalog";
 
 const STORAGE_KEY = "ts-compiler-frontend:source";
-const TAB_LABELS = ["Console", "CST", "AST", "Symbol Table", "Memory Image"] as const;
+const TAB_LABELS = ["Console", "Errors / Warnings", "CST", "AST", "Symbol Table", "Memory Image"] as const;
 
 type TabLabel = (typeof TAB_LABELS)[number];
 
@@ -113,6 +113,7 @@ function ProgramOutput({ program }: { program: ProgramResult }) {
       </div>
       <div className="tab-body">
         {activeTab === "Console" && <ConsoleTab log={program.log} />}
+        {activeTab === "Errors / Warnings" && <ErrorsWarningsTab program={program} />}
         {activeTab === "CST" && (
           <PreTab lines={program.cstLines} placeholder="n/a (parse errors or lex errors)" />
         )}
@@ -140,6 +141,32 @@ function ConsoleTab({ log }: { log: LogEntry[] }) {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+function ErrorsWarningsTab({ program }: { program: ProgramResult }) {
+  if (program.diagnostics.length === 0) {
+    return <div className="status-banner">No errors, warnings, or hints reported for this program.</div>;
+  }
+
+  return (
+    <div className="issues-tab">
+      <section className="issue-section">
+        <h3>Diagnostics</h3>
+        <div className="diagnostic-list">
+          {program.diagnostics.map((diagnostic, index) => (
+            <div className={`diagnostic-row ${diagnostic.severity.toLowerCase()}`} key={`${index}-${diagnostic.message}`}>
+              <span className="diagnostic-severity">{diagnostic.severity}</span>
+              <span className="diagnostic-phase">{diagnostic.phase}</span>
+              <span className="diagnostic-location">
+                {diagnostic.line}:{diagnostic.column}
+              </span>
+              <span className="diagnostic-message">{diagnostic.message}</span>
+            </div>
+          ))}
+        </div>
+      </section>
     </div>
   );
 }

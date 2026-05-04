@@ -297,6 +297,64 @@ textarea {
   color: #62d0ff;
 }
 
+.issues-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.issue-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.issue-section h3 {
+  margin: 0;
+  color: #f7f9fa;
+  font-size: 0.85rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.diagnostic-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.diagnostic-row {
+  display: grid;
+  grid-template-columns: 6rem 10rem 5rem minmax(0, 1fr);
+  gap: 0.7rem;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid #626970;
+  border-radius: 3px;
+  background: #101417;
+  color: #d8e0e5;
+}
+
+.diagnostic-severity,
+.diagnostic-phase,
+.diagnostic-location {
+  color: #8f9aa3;
+}
+
+.diagnostic-row.error {
+  border-color: #ff901a;
+  color: #ffb066;
+}
+
+.diagnostic-row.warning {
+  border-color: #ffbd63;
+  color: #ffd08a;
+}
+
+.diagnostic-row.hint {
+  border-color: #62d0ff;
+  color: #9de4ff;
+}
+
 .tree-output {
   margin: 0;
   overflow: auto;
